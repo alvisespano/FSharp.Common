@@ -155,10 +155,11 @@ let async_delayed f =
                 | Choice1Of2 r -> r
                 | Choice2Of2 e -> raise e)
 
-let rec (|Forall|_|) (|P|_|) = function
-    | [] -> Some []
-    | (P x) :: (Forall (|P|_|) xs) -> Some (x :: xs)
-    | _ -> None
+// DEPRECATED
+//let rec (|Forall|_|) (|P|_|) = function
+//    | [] -> Some []
+//    | (P x) :: (Forall (|P|_|) xs) -> Some (x :: xs)
+//    | _ -> None
 
 let trap f x = try Some (f x) with _ -> None
 let private trapn trap f a = trap (f a)

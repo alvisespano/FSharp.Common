@@ -36,7 +36,9 @@ type esit<'id, 'a, 'b> =
 
 type t< 'id, [< EqualityConditionalOn; ComparisonConditionalOn >] 'a when 'id : comparison> (m : Map<'id, 'a>) =
 
-    member __.ofMap (m : Map<_, _>) = new t<_, _> (m)
+    static member ofMap (m : Map<'id, 'a>) = new t<_, _> (m)
+    static member ofSeq (sq : seq<'id * 'a>) = new t<_, _> (Map.ofSeq sq)
+
     member __.toMap = m
 
     override x.Equals yobj =
@@ -65,9 +67,9 @@ type t< 'id, [< EqualityConditionalOn; ComparisonConditionalOn >] 'a when 'id : 
 
     member __.is_empty = m.IsEmpty
     member __.length = m.Count
-    member this.map f = this.ofMap (Map.map f m)
-    member this.filter f = this.ofMap (Map.filter f m)
-    member this.remove x = this.ofMap (Map.remove x m)
+    member __.map f = t<_, _>.ofMap (Map.map f m)
+    member __.filter f = t<_, _>.ofMap (Map.filter f m)
+    member __.remove x = t<_, _>.ofMap (Map.remove x m)
     member __.find f = Map.findKey f m
     member __.forall p = Map.forall p m
     member __.find_key p = Map.findKey p m
@@ -80,6 +82,7 @@ type t< 'id, [< EqualityConditionalOn; ComparisonConditionalOn >] 'a when 'id : 
     member __.toArray = Map.toArray m
 
     member this.keys = seq { for x, _ in this -> x }
+    member this.dom = this.keys |> Set.ofSeq
 
     member __.search_by p = Map.tryPick (fun x v -> if p x v then Some (x, v) else None) m
 
@@ -89,7 +92,7 @@ type t< 'id, [< EqualityConditionalOn; ComparisonConditionalOn >] 'a when 'id : 
         try Map.find x m
         with :? KeyNotFoundException -> Report.unbound_symbol x
 
-    member this.bind x v = this.ofMap (Map.add x v m)
+    member __.bind x v = t<_, _>.ofMap (Map.add x v m)
 
     member env.binds bs = Seq.fold (fun (env : t<_, _>) (x, v) -> env.bind x v) env bs
 
