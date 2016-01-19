@@ -31,7 +31,7 @@ type esit<'id, 'a, 'b> =
     | New1 of 'id * 'a
     | New2 of 'id * 'b
 
-// pure map-based environment class
+// map-based environment class
 //
 
 type t< 'id, [< EqualityConditionalOn; ComparisonConditionalOn >] 'a when 'id : comparison> (m : Map<'id, 'a>) =
@@ -156,14 +156,16 @@ type t< 'id, [< EqualityConditionalOn; ComparisonConditionalOn >] 'a when 'id : 
 // shortcut for polymorphic empty env
 let empty<'id, 'a when 'id : comparison> = new t<'id, 'a> ()
 
-// computation expression builder
-let B<'id, 'a when 'id : comparison> = new Computation.Builder.itemized_collection<_, t<'id, 'a>> (empty, (fun (x, v) (env : t<_, _>) -> env.bind x v), (+))
-
+[< CompilationRepresentationAttribute(CompilationRepresentationFlags.ModuleSuffix) >]
+module t =
+    // computation expression builder
+    let B<'id, 'a when 'id : comparison> = new Computation.Builder.itemized_collection<_, t<'id, 'a>> (empty, (fun (x, v) (env : t<_, _>) -> env.bind x v), (+))
 
 
 // pure functional environment
 //
 
+[< RequireQualifiedAccess >]
 module Functional =
 
     type t<'a, 'b> = 'a -> 'b
@@ -175,4 +177,4 @@ module Functional =
     let binds env1 env = fun x -> try env1 x with Failure _ -> env x
 
     // computation expression builder
-    let B () = new Computation.Builder.itemized_collection<'a * 'b, t<'a, 'b>> (empty, uncurry2 bind, binds)
+//    let B<'a, 'b> = new Computation.Builder.itemized_collection<'a * 'b, t<'a, 'b>> (empty = empty, plus1 = (fun (x, v) env -> bind x v env), plus = binds)

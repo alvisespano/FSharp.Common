@@ -128,32 +128,16 @@ module Builder =
 
 // some useful builder instances
 
-let str = new Builder.itemized_collection<_, _> ("", (fun (c : char) -> new string [|c|]), (+))
+module B =
+    let str = new Builder.itemized_collection<_, _> ("", (fun (c : char) -> new string [|c|]), (+))
 
-let set<'a when 'a : comparison> = new Builder.itemized_collection<'a, Set<'a> > (Set.empty, Set.singleton, Set.union)
+    let set<'a when 'a : comparison> = new Builder.itemized_collection<'a, Set<'a> > (Set.empty, Set.singleton, Set.union)
 
-let hashset prj = new Builder.itemized_collection<_, _> (empty = new HashSet<_> ({ new IEqualityComparer<_> with
-                                                                                      member __.Equals (x, y) = CustomCompare.equals_by prj x y
-                                                                                      member __.GetHashCode x = CustomCompare.hash_by prj x }),
-                                                         plus1 = (fun x (a : HashSet<_>) -> ignore <| a.Add x; a),
-                                                         plus = (fun (a : HashSet<_>) b -> a.UnionWith b; a))
+    let hashset prj = new Builder.itemized_collection<_, _> (empty = new HashSet<_> ({ new IEqualityComparer<_> with
+                                                                                          member __.Equals (x, y) = CustomCompare.equals_by prj x y
+                                                                                          member __.GetHashCode x = CustomCompare.hash_by prj x }),
+                                                             plus1 = (fun x (a : HashSet<_>) -> ignore <| a.Add x; a),
+                                                             plus = (fun (a : HashSet<_>) b -> a.UnionWith b; a))
 
-let net_collection<'e, 'a when 'a :> ICollection<'e> and 'a : (new : unit -> 'a)> = new Builder.net_collection<'e, 'a> ()
+    let net_collection<'e, 'a when 'a :> ICollection<'e> and 'a : (new : unit -> 'a)> = new Builder.net_collection<'e, 'a> ()
 
-// local test: comment and uncomment when needed
-//let s3 =
-//    str {
-//        let f x = str { for c in [1uy .. x] do yield char_of_byte c }
-//        yield 'a'
-//        yield 'b'
-//        yield! "ciao"
-//        let a = byte_of_char 'A'
-//        for c in [1uy .. 10uy] do
-//            let s = "infix"
-//            let! s' = f c
-//            yield char_of_byte (a + c)
-//            if c % 2uy = 0uy then 
-
-//                yield! s
-//        yield! "end"
-//   } 
