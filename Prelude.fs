@@ -56,6 +56,8 @@ let crop (a, b) n = if n < a then a elif n > b then b else n
 let char_of_byte n = Text.ASCIIEncoding.ASCII.GetChars([|n|]).[0]
 let byte_of_char c = Text.ASCIIEncoding.ASCII.GetBytes([|c|]).[0]
 
+let spaces n = new String (' ', n)
+
 let fresh_int =
     let cnt = ref 0
     in

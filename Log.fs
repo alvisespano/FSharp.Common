@@ -70,7 +70,8 @@ type config (?filename : string) =
         Option.iter (fun (sw : StreamWriter) -> sw.Flush (); sw.Close (); swo <- None) swo
 
     member this.filename
-        with get () = Option.map (fun (sw : StreamWriter) -> (sw.BaseStream :?> FileStream).Name) swo
+        with get () =
+            Option.map (fun (sw : StreamWriter) -> (sw.BaseStream :?> FileStream).Name) swo
 
         and set newnameo =
             this.close
@@ -83,7 +84,7 @@ type config (?filename : string) =
                                 new StreamWriter (newname))
                             newnameo
 
-    member internal this.StreamWriter = something id StreamWriter.Null swo
+    member internal __.StreamWriter = something id StreamWriter.Null swo
 
     member val move_logfile_on_name_change = true with get, set
 
@@ -119,9 +120,11 @@ type config (?filename : string) =
             this.show_datetime <- b
             this.show_priority <- b
             this.show_urgency <- b
-    
+
+    member val tab = 5 with get, set    
+      
     member val padding_enabled = true with get, set
-    member val multiline_tab_width = 2 with get, set
+    member val multiline_left_pad = 2 with get, set
     member val datetime_max_len = 22 with get, set
     member val thread_max_len = 5 with get, set
     member val priority_max_len = 4 with get, set
@@ -191,6 +194,8 @@ module Color =
 type prompt =  int option -> pri option -> string -> unit
 
 type [< AbstractClass >] logger (cfg : config) =
+    let tab_history = new System.Collections.Generic.LinkedList<_> ()
+
     member this.debug_prompt = this.prompter cfg.debug_header cfg.debug_color
     member this.hint_prompt = this.prompter cfg.hint_header cfg.hint_color
     member this.warn_prompt = this.prompter cfg.warn_header cfg.warn_color
@@ -224,6 +229,13 @@ type [< AbstractClass >] logger (cfg : config) =
     default this.print prompt thre lv fmt =
         (if lv >= thre then this.visible_prompt_printf else this.hidden_prompt_printf) prompt (Some (int lv - int thre)) (Some lv) fmt
 
+    member __.tabulate n =
+        ignore <| tab_history.AddLast cfg.tab
+        cfg.tab <- cfg.tab + n
+
+    member __.undo_tabulate =
+        cfg.tab <- tab_history.Last.Value
+        tab_history.RemoveLast ()
 
 
 // console logger
@@ -237,12 +249,12 @@ type console_logger (cfg) =
 //    let history = Option.map (fun n -> new X.Collection.cyclic_queue<int> (n)) cfg.suppress_duplicates_window
     let calling_thread_id = Threading.Thread.CurrentThread.ManagedThreadId
     let mutable another_thread_has_logged = false
-    let tab = new String (' ', cfg.multiline_tab_width)
-    let tablen = ref 0
+    let tab = spaces cfg.multiline_left_pad
+//    let tablen = ref 0
     let out (s : string) =
         if cfg.has_console then Console.Write s
         cfg.StreamWriter.Write s
-        tablen := !tablen + s.Length
+//        tablen := !tablen + s.Length
     let outcol fg bg (s : string) =
         Console.ForegroundColor <- fg
         Console.BackgroundColor <- bg
@@ -252,18 +264,18 @@ type console_logger (cfg) =
         outcol fg bg s
         outcol cfg.square_bracket_color ConsoleColor.Black "]"
         let dlen = len - (s.Length + 2)
-        if dlen > 0 then Console.ResetColor (); out (new String (' ', dlen))
+        if dlen > 0 then Console.ResetColor (); out (spaces dlen)
     let outsqfg fg len s = outsq fg ConsoleColor.Black len s
     let pad n =
         Console.ResetColor ()
-        if cfg.padding_enabled then out (new String (' ', n))
+        if cfg.padding_enabled then out (spaces n)
      
     override this.prompter (hdo : string option) (col : ConsoleColor) =
         let darkcol = Color.darken col
         in
           fun markso lvo ->
             let print_on_console (s : string) =
-                tablen := 0
+//                tablen := cfg.tab
                 // datetime              
                 if cfg.show_datetime then
                     let now = DateTime.Now
@@ -294,7 +306,7 @@ type console_logger (cfg) =
                         | None            -> pad cfg.priority_max_len
                 // urgency
                 if cfg.show_urgency then
-                    Option.iter (fun marks -> outcol cfg.urgency_color ConsoleColor.Black (new String ('!', marks) + new String (' ', 5 - marks))) markso
+                    Option.iter (fun marks -> outcol cfg.urgency_color ConsoleColor.Black (new String ('!', marks) + spaces (5 - marks))) markso
                 else out " "
                 // body
                 let at = Console.CursorLeft
@@ -310,8 +322,8 @@ type console_logger (cfg) =
                     Console.WriteLine ()
                 let p (s : string) =
                     let s = s.Replace ("\t", tab)
-                    let tabn = cfg.multiline_tab_width + (new Text.RegularExpressions.Regex ("[^ ]+")).Match(s).Index
-                    let sa = split_string_on_size (Console.BufferWidth - at - 1 - cfg.multiline_tab_width) s
+                    let tabn = cfg.multiline_left_pad + cfg.tab + (new Text.RegularExpressions.Regex ("[^ ]+")).Match(s).Index
+                    let sa = split_string_on_size (Console.BufferWidth - at - 1 - cfg.multiline_left_pad - cfg.tab) s
                     if sa.Length > 0 then
                         outbody 0 sa.[0]
                         for i = 1 to sa.Length - 1 do
