@@ -129,7 +129,7 @@ module Builder =
 // some useful builder instances
 
 module B =
-    let str = new Builder.itemized_collection<_, _> ("", (fun (c : char) -> new string [|c|]), (+))
+    let string = new Builder.itemized_collection<_, _> ("", (fun (c : char) -> new string [|c|]), (+))
 
     let set<'a when 'a : comparison> = new Builder.itemized_collection<'a, Set<'a> > (Set.empty, Set.singleton, Set.union)
 

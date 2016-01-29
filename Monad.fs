@@ -11,7 +11,7 @@ open Computation.Bits
 type M<'a, 's> = 's -> 'a * 's
 
 
-// typical CPS state monad
+// state monad
 //
 
 // TODO: try to reuse Computation.Bits modules
