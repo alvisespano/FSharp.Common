@@ -121,7 +121,7 @@ type config (?filename : string) =
             this.show_priority <- b
             this.show_urgency <- b
 
-    member val tab = 5 with get, set    
+    member val tab = 0 with get, set    
       
     member val padding_enabled = true with get, set
     member val multiline_left_pad = 2 with get, set
@@ -194,7 +194,7 @@ module Color =
 type prompt =  int option -> pri option -> string -> unit
 
 type [< AbstractClass >] logger (cfg : config) =
-    let tab_history = new System.Collections.Generic.LinkedList<_> ()
+    let tab_history = new System.Collections.Generic.Stack<_> ()
 
     member this.debug_prompt = this.prompter cfg.debug_header cfg.debug_color
     member this.hint_prompt = this.prompter cfg.hint_header cfg.hint_color
@@ -230,12 +230,12 @@ type [< AbstractClass >] logger (cfg : config) =
         (if lv >= thre then this.visible_prompt_printf else this.hidden_prompt_printf) prompt (Some (int lv - int thre)) (Some lv) fmt
 
     member __.tabulate n =
-        ignore <| tab_history.AddLast cfg.tab
+        ignore <| tab_history.Push cfg.tab
         cfg.tab <- cfg.tab + n
 
     member __.undo_tabulate =
-        cfg.tab <- tab_history.Last.Value
-        tab_history.RemoveLast ()
+        if tab_history.Count > 0 then
+            cfg.tab <- tab_history.Pop ()
 
 
 // console logger
@@ -325,7 +325,7 @@ type console_logger (cfg) =
                     let tabn = cfg.multiline_left_pad + cfg.tab + (new Text.RegularExpressions.Regex ("[^ ]+")).Match(s).Index
                     let sa = split_string_on_size (Console.BufferWidth - at - 1 - cfg.multiline_left_pad - cfg.tab) s
                     if sa.Length > 0 then
-                        outbody 0 sa.[0]
+                        outbody cfg.tab sa.[0]
                         for i = 1 to sa.Length - 1 do
                             outbody tabn sa.[i]
                 Array.iter p (s.Split [|'\n'|])
