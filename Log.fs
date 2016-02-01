@@ -238,6 +238,7 @@ type [< AbstractClass >] logger (cfg : config) =
     member __.undo_tabulate =
         if tab_history.Count > 0 then
             cfg.tab <- tab_history.Pop ()
+   
 
 
 // console logger
