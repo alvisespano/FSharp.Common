@@ -96,8 +96,6 @@ type config (?filename : string) =
 
     member val has_console = (try (ignore Console.CursorLeft; true) with _ -> false)
 
-    member val suppress_duplicates_window = Some 80 with get, set
-
     abstract all_thresholds : pri with set
     default this.all_thresholds
         with set pri =
@@ -229,9 +227,13 @@ type [< AbstractClass >] logger (cfg : config) =
     default this.print prompt thre lv fmt =
         (if lv >= thre then this.visible_prompt_printf else this.hidden_prompt_printf) prompt (Some (int lv - int thre)) (Some lv) fmt
 
-    member __.tabulate n =
-        ignore <| tab_history.Push cfg.tab
-        cfg.tab <- cfg.tab + n
+    member __.tab
+        with get () = cfg.tab
+        and set n =
+            ignore <| tab_history.Push cfg.tab
+            cfg.tab <- n
+
+    member this.tabulate n = this.tab <- this.tab + n
 
     member __.undo_tabulate =
         if tab_history.Count > 0 then
@@ -246,15 +248,12 @@ type console_logger (cfg) =
 
     let mutex = new Threading.Mutex ()
     let now0 = DateTime.Now
-//    let history = Option.map (fun n -> new X.Collection.cyclic_queue<int> (n)) cfg.suppress_duplicates_window
     let calling_thread_id = Threading.Thread.CurrentThread.ManagedThreadId
     let mutable another_thread_has_logged = false
-    let tab = spaces cfg.multiline_left_pad
-//    let tablen = ref 0
+    let tabs = spaces cfg.multiline_left_pad
     let out (s : string) =
         if cfg.has_console then Console.Write s
         cfg.StreamWriter.Write s
-//        tablen := !tablen + s.Length
     let outcol fg bg (s : string) =
         Console.ForegroundColor <- fg
         Console.BackgroundColor <- bg
@@ -275,7 +274,6 @@ type console_logger (cfg) =
         in
           fun markso lvo ->
             let print_on_console (s : string) =
-//                tablen := cfg.tab
                 // datetime              
                 if cfg.show_datetime then
                     let now = DateTime.Now
@@ -321,7 +319,7 @@ type console_logger (cfg) =
                     Console.ResetColor ()
                     Console.WriteLine ()
                 let p (s : string) =
-                    let s = s.Replace ("\t", tab)
+                    let s = s.Replace ("\t", tabs)
                     let tabn = cfg.multiline_left_pad + cfg.tab + (new Text.RegularExpressions.Regex ("[^ ]+")).Match(s).Index
                     let sa = split_string_on_size (Console.BufferWidth - at - 1 - cfg.multiline_left_pad - cfg.tab) s
                     if sa.Length > 0 then
