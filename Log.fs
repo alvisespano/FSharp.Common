@@ -122,6 +122,7 @@ type config (?filename : string) =
     member val tab = 0 with get, set    
       
     member val padding_enabled = true with get, set
+    member val multiline_left_pad = 3 with get, set
     member val tab_to_spaces = Some 4 with get, set
     member val datetime_max_len = 22 with get, set
     member val thread_max_len = 5 with get, set
@@ -319,7 +320,7 @@ type console_logger (cfg) =
                     Console.ResetColor ()
                     Console.WriteLine ()
                 let p (s : string) =
-                    let s = (match cfg.tab_to_spaces with Some n -> s.Replace("\t", spaces n) | None -> s).Trim ()
+                    let s = match cfg.tab_to_spaces with Some n -> s.Replace("\t", spaces n) | None -> s
                     let tablen1 = cfg.tab
                     let sa =
                         let len1 = Console.BufferWidth - (at + tablen1) - 1   // length of the first (unpadded) line; the -1 is for rounding down console width
@@ -328,9 +329,9 @@ type console_logger (cfg) =
                                 let s0 = s.Substring (0, len1)
                                 let sr = s.Substring len1
                                 in
-                                  [ yield tablen1, s0.Trim ()
+                                  [ yield tablen1, s0
                                     for s in split_string_on_size (len1 - cfg.multiline_left_pad) sr do
-                                        yield tablen1 + cfg.multiline_left_pad, s.Trim () ]
+                                        yield tablen1 + cfg.multiline_left_pad, s ]
                             else [ tablen1, s ]
                     for s in sa do
                         outbody s
