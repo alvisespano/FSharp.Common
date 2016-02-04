@@ -122,7 +122,7 @@ type config (?filename : string) =
     member val tab = 0 with get, set    
       
     member val padding_enabled = true with get, set
-    member val multiline_left_pad = 2 with get, set
+    member val tab_to_spaces = Some 4 with get, set
     member val datetime_max_len = 22 with get, set
     member val thread_max_len = 5 with get, set
     member val priority_max_len = 4 with get, set
@@ -251,7 +251,6 @@ type console_logger (cfg) =
     let now0 = DateTime.Now
     let calling_thread_id = Threading.Thread.CurrentThread.ManagedThreadId
     let mutable another_thread_has_logged = false
-    let tabs = spaces cfg.multiline_left_pad
     let out (s : string) =
         if cfg.has_console then Console.Write s
         cfg.StreamWriter.Write s
@@ -312,7 +311,7 @@ type console_logger (cfg) =
                 let (bodyfgcol, bodybgcol) =
                     if cfg.text_shade_by_urgency then Color.shade col darkcol (either 1 markso)
                     else (col, ConsoleColor.Black)
-                let outbody tabn (s : string) =
+                let outbody (tabn, s : string) =
                     Console.CursorLeft <- at + tabn
                     Console.ForegroundColor <- bodyfgcol
                     Console.BackgroundColor <- bodybgcol
@@ -320,13 +319,21 @@ type console_logger (cfg) =
                     Console.ResetColor ()
                     Console.WriteLine ()
                 let p (s : string) =
-                    let s = s.Replace ("\t", tabs)
-                    let tabn = cfg.multiline_left_pad + cfg.tab + (new Text.RegularExpressions.Regex ("[^ ]+")).Match(s).Index
-                    let sa = split_string_on_size (Console.BufferWidth - at - 1 - cfg.multiline_left_pad - cfg.tab) s
-                    if sa.Length > 0 then
-                        outbody cfg.tab sa.[0]
-                        for i = 1 to sa.Length - 1 do
-                            outbody tabn sa.[i]
+                    let s = (match cfg.tab_to_spaces with Some n -> s.Replace("\t", spaces n) | None -> s).Trim ()
+                    let tablen1 = cfg.tab
+                    let sa =
+                        let len1 = Console.BufferWidth - (at + tablen1) - 1   // length of the first (unpadded) line; the -1 is for rounding down console width
+                        in
+                            if s.Length > len1 then
+                                let s0 = s.Substring (0, len1)
+                                let sr = s.Substring len1
+                                in
+                                  [ yield tablen1, s0.Trim ()
+                                    for s in split_string_on_size (len1 - cfg.multiline_left_pad) sr do
+                                        yield tablen1 + cfg.multiline_left_pad, s.Trim () ]
+                            else [ tablen1, s ]
+                    for s in sa do
+                        outbody s
                 Array.iter p (s.Split [|'\n'|])
 
             in
