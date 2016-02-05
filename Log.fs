@@ -333,8 +333,8 @@ type console_logger (cfg) =
                                     for s in split_string_on_size (len1 - cfg.multiline_left_pad) sr do
                                         yield tablen1 + cfg.multiline_left_pad, s ]
                             else [ tablen1, s ]
-                    for s in sa do
-                        outbody s
+                    for _, s as e in sa do
+                        if not <| String.IsNullOrWhiteSpace s then outbody e
                 Array.iter p (s.Split [|'\n'|])
 
             in
