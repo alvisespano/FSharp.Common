@@ -58,10 +58,8 @@ let byte_of_char c = Text.ASCIIEncoding.ASCII.GetBytes([|c|]).[0]
 
 let spaces n = new String (' ', n)
 
-let fresh_int =
-    let cnt = ref 0
-    in
-        fun () -> let r = !cnt in incr cnt; r
+let mutable private fresh_int_cnt = 0
+let fresh_int () = let r = fresh_int_cnt in fresh_int_cnt <- fresh_int_cnt + 1; r
 
 let something f def = function
     None   -> def
