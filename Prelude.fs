@@ -155,11 +155,6 @@ let async_delayed f =
                 | Choice1Of2 r -> r
                 | Choice2Of2 e -> raise e)
 
-// DEPRECATED
-//let rec (|Forall|_|) (|P|_|) = function
-//    | [] -> Some []
-//    | (P x) :: (Forall (|P|_|) xs) -> Some (x :: xs)
-//    | _ -> None
 
 let trap f x = try Some (f x) with _ -> None
 let private trapn trap f a = trap (f a)
@@ -178,10 +173,7 @@ let curry3 f a b c = f (a, b, c)
 let curry4 f a b c d = f (a, b, c, d)
 let curry5 f a b c d e = f (a, b, c, d, e)
 
-//[<Obsolete("this active pattern is not very useful; moreover its name is too short for being a global binding")>]
-//let (|I|_|) x y = if x = y then Some () else None
-
-let inline (!>) (x:^a) : ^b = ((^a or ^b) : (static member op_Implicit : ^a -> ^b) x)
+let inline (!>) (x : ^a) : ^b = ((^a or ^b) : (static member op_Implicit : ^a -> ^b) x)
 let inline (!>>) x = !> (!> x)
 
 let rec pretty_exn_and_inners (e : exn) =
