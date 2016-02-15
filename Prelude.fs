@@ -30,6 +30,8 @@ let lexnf exnf fmt = exnf ("%s(" %+%% ("%s): " %+%% fmt))
 let uunexpected fmt = throw_formatted Unexpected fmt
 let unexpected fmt = lexnf uunexpected fmt
 
+let unexpected_case x = unexpected "unexpected pattern case: %O" x
+
 let unot_implemented fmt = throw_formatted (fun s -> new NotImplementedException (s)) fmt
 let not_implemented fmt = lexnf unot_implemented fmt
 
