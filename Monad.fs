@@ -6,16 +6,18 @@
  
 module FSharp.Common.Monad
 
-open Computation.Bits
+open System
+
+
+// standard state monad
+//
 
 type M<'a, 's> = 's -> 'a * 's
 
-
-// state monad
-//
-
 // TODO: try to reuse Computation.Bits modules
 module Bits =
+    open Computation.Bits
+
     let __Using = Std.__Using //_TryFinally (v : #System.IDisposable, f) = _TryFinally (f v, fun () -> if v <> null then v.Dispose () else ())
 
     let __For _Bind _Zero _Using (sq : seq<_>, f) =
@@ -30,6 +32,9 @@ module Bits =
         in
             if cond () then _Bind (f, fun _ -> _While (cond, f)) else _Zero ()
 
+    let __TryFinally = Std.__TryFinally //fun (s : 's) -> try e s finally fin ()
+
+    let __Combine = Std.__Combine
 
 type state_builder<'s> () =
     member __.Delay f = f ()
@@ -38,17 +43,18 @@ type state_builder<'s> () =
     member __.Return x = fun (s : 's) -> x, s
     member this.ReturnFrom f = this { let! r = f in return r }
     member __.Zero () = fun (s : 's) -> (), s
-    member this.Combine (a, b) = Std.__Combine this.Bind (a, b)
+    member this.Combine (a, b) = Bits.__Combine this.Bind (a, b)
+    member __.TryFinally (e, fin) = Bits.__TryFinally (e, fin)
     member this.Using (v, f) = Bits.__Using this.TryFinally (v, f)
     member this.While (cond, f) = if cond () then this.Bind (f, fun _ -> this.While (cond, f)) else this.Zero ()
     member this.For (sq : seq<_>, f) =
-        let rec R (e : System.Collections.Generic.IEnumerator<_>) = 
+        let rec R (e : Collections.Generic.IEnumerator<_>) =
             if e.MoveNext () then this.Bind (f e.Current, fun _ -> R e)
             else this.Zero ()
         in
             this.Using (sq.GetEnumerator (), R)
     member __.TryWith (e, catch) = fun (s : 's) -> try e s with exn -> catch exn s
-    member __.TryFinally (e, fin) = fun (s : 's) -> try e s finally fin ()
+
      
     // old version
 //    member __.Delay f = fun (s : 's) -> f () s

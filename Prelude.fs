@@ -67,6 +67,8 @@ let something f def = function
     None   -> def
   | Some x -> f x
 
+let (|Mapped|) f x = f x        // useful for mapping data on pattern matching site
+
 let rec try_map f = function
     | [] -> Some []
     | x :: xs -> match f x with Some y -> Option.map (fun ys -> y :: ys) (try_map f xs) | None -> None
