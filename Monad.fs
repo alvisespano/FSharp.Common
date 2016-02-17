@@ -14,7 +14,7 @@ open System
 
 type M<'a, 's> = 's -> 'a * 's
 
-// TODO: try to reuse Computation.Bits modules
+// TODOL: try to reuse Computation.Bits modules
 module Bits =
     open Computation.Bits
 
