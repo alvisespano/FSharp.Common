@@ -28,7 +28,7 @@ module Bits =
             finally compensation ()
 
         let __Using _TryFinally (disp : #System.IDisposable, body) =
-            _TryFinally (body disp, fun () -> match disp with null -> disp.Dispose () | _ -> ())
+            _TryFinally (body disp, fun () -> match disp with null -> () | _ -> disp.Dispose ())
 
         let rec __While _Bind _Zero (guard, body) =
             let __While = __While _Bind _Zero
@@ -62,7 +62,7 @@ module Bits =
         let __TryFinally = FunBody.__TryFinally
 
         let __Using _TryFinally (disp : #System.IDisposable, body) =
-            _TryFinally (fun () -> body disp, fun () -> match disp with null -> disp.Dispose () | _ -> ())
+            _TryFinally (fun () -> body disp, fun () -> match disp with null -> () | _ -> disp.Dispose ())
 
         let rec __While _Bind _Zero (guard, body) =
             let __While = __While _Bind _Zero

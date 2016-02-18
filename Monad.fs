@@ -7,6 +7,7 @@
 module FSharp.Common.Monad
 
 open System
+open System.Collections.Generic
 
 
 // standard state monad
@@ -18,9 +19,10 @@ type M<'a, 's> = 's -> 'a * 's
 module Bits =
     open Computation.Bits
 
-    let __Using = Std.__Using //_TryFinally (v : #System.IDisposable, f) = _TryFinally (f v, fun () -> if v <> null then v.Dispose () else ())
+    let __Using = Std.__Using
+//    let __Using _TryFinally (v : #System.IDisposable, f) = _TryFinally (f v, fun () -> if v <> null then v.Dispose () else ())
 
-    let __For _Bind _Zero _Using (sq : seq<_>, f) =
+    let __For _Bind _Zero _Using (sq : #IEnumerable<_>, f) =
         let rec R (e : System.Collections.Generic.IEnumerator<_>) = 
             if e.MoveNext () then _Bind (f e.Current, fun _ -> R e)
             else _Zero ()
@@ -32,7 +34,8 @@ module Bits =
         in
             if cond () then _Bind (f, fun _ -> _While (cond, f)) else _Zero ()
 
-    let __TryFinally = Std.__TryFinally //fun (s : 's) -> try e s finally fin ()
+    let __TryFinally = FunBody.__TryFinally
+//    let __TryFinally (e, fin) = fun (s : 's) -> try e s finally fin ()
 
     let __Combine = Std.__Combine
 
