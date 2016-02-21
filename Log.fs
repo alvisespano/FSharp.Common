@@ -165,8 +165,8 @@ module Color =
                 | 0 -> darkcol, C.Black // darker
                 | 1 -> col, C.Black     // normal
                 | 2 -> col, darkcol     // brighter
+//                | 3 -> darkcol, col
                 | 3 -> C.White, darkcol
-                | 4 -> darkcol, col
                 | _ -> C.White, col
         in
             fg, if fg = bg then C.Gray else bg
