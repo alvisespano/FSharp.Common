@@ -7,7 +7,6 @@
 module FSharp.Common.Parsing
 
 open System
-open System.Text
 open System.Text.RegularExpressions
 open Microsoft.FSharp.Text  // if removed, any project using types such as Position and LexBuffer will not compile because of name clashing with homonimous types defined elsewhere within F# libs
 open FSharp.Common.Prelude
@@ -52,48 +51,21 @@ type location (filename : string, line : int, col : int, ?end_line : int, ?end_c
     override this.ToString () = this.pretty
 
 
-// parsing exceptions hierarchy
-
-type located_error (header, message, loc : location) =
-    inherit Exception (message)
-    member val location = loc
-    abstract message_parts : string list
-    abstract message_body : string
-
-    default this.message_parts = [this.location.pretty; header; this.message_body] 
-    default this.message_body = message
-
-    override this.Message = this.message_parts |> Seq.filter (function "" -> false | _ -> true) |> mappen_strings (sprintf "%O") ": " 
-
-type syntax_error (message, loc) =
-    inherit located_error ("syntax error", message, loc)
-
-    static member internal locate_from_lexbuf (lexbuf : Lexing.LexBuffer<_>) =
-        new location (lexbuf.StartPos, lexbuf.EndPos, line_bias = 0, col_bias = 1)
-
-    new (message, lexbuf : Lexing.LexBuffer<_>) =
-        new syntax_error (message, syntax_error.locate_from_lexbuf lexbuf)
-
 
 // yacc/lex utilities
 //
 
 module LexYacc =
-
     exception ParseErrorContextException of obj
-
     let parse_error_rich = Some (fun ctx -> raise (ParseErrorContextException ctx))
-
     let newline (lexbuf : Lexing.LexBuffer<_>) = lexbuf.EndPos <- lexbuf.EndPos.NextLine
-
     let lexeme = Lexing.LexBuffer<_>.LexemeString
-
 
 
 // FsYacc parser wrapper
 //
 
-let yparse parser (tokenizer : Lexing.LexBuffer<_> -> 'tok) tokenTagToTokenId =
+let yparse syntax_error parser (tokenizer : Lexing.LexBuffer<_> -> 'tok) tokenTagToTokenId =
     let pretty_token_by_tags =
         let p n = sprintf "%A" (tokenTagToTokenId n)  // do not change %A with %O: tokens do not define ToString(), thus only %A prints them
         let prefix = "TOKEN_"
@@ -107,9 +79,7 @@ let yparse parser (tokenizer : Lexing.LexBuffer<_> -> 'tok) tokenTagToTokenId =
         let tok =
             try tokenizer lexbuf
             with e -> raise (syntax_error (e.Message, lexbuf))
-        #if DEBUG_SHOW_LEXER_TOKENS
-        if show_lexer_tokens then L.debug Low "%s" (pretty_token tok)
-        #endif
+//        L.debug Low "%s" (pretty_token tok)
         tok
     in
         fun (lexbuf : Lexing.LexBuffer<_>) ->
@@ -132,13 +102,13 @@ let init_lexbuf filename (lexbuf : Lexing.LexBuffer<_>) =
     lexbuf.StartPos <- r
     lexbuf.EndPos <- r
 
-let parse_from_lexbuf lexbuf filename parser tokenizer tokenTagToTokenId =
+let parse_from_lexbuf syntax_error lexbuf filename parser tokenizer tokenTagToTokenId =
     init_lexbuf filename lexbuf
-    yparse parser tokenizer tokenTagToTokenId lexbuf
+    yparse syntax_error parser tokenizer tokenTagToTokenId lexbuf
 
-let parse_from_TextReader trd = parse_from_lexbuf (Lexing.LexBuffer<_>.FromTextReader trd)
+let parse_from_TextReader syntax_error trd = parse_from_lexbuf syntax_error (Lexing.LexBuffer<_>.FromTextReader trd)
 
-let parse_from_string s name = parse_from_lexbuf (Lexing.LexBuffer<_>.FromString s) (sprintf "<%s>" name)
+let parse_from_string syntax_error s name = parse_from_lexbuf syntax_error (Lexing.LexBuffer<_>.FromString s) (sprintf "<%s>" name)
 
 
 
