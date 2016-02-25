@@ -69,9 +69,15 @@ let something f def = function
 
 let (|Mapped|) f x = f x        // useful for mapping data on pattern matching site
 
-let rec try_map f = function
-    | [] -> Some []
-    | x :: xs -> match f x with Some y -> Option.map (fun ys -> y :: ys) (try_map f xs) | None -> None
+[< CompilationRepresentationAttribute(CompilationRepresentationFlags.ModuleSuffix) >]
+module List =
+    let takeButLast = function
+        | Mapped List.rev (last :: Mapped List.rev heads) -> heads, last
+        | _ -> unexpected "empty list has no heads" __SOURCE_FILE__ __LINE__
+
+[< CompilationRepresentationAttribute(CompilationRepresentationFlags.ModuleSuffix) >]
+module Seq =
+    let takeButLast l = Seq.take (Seq.length l - 1) l, Seq.last l
 
 let soprintf fmt = function None -> "" | Some x -> sprintf fmt x
 

@@ -50,7 +50,9 @@ type location (filename : string, line : int, col : int, ?end_line : int, ?end_c
 
     override this.ToString () = this.pretty
 
-
+    static member (+) (l1 : location, l2 : location) =
+        new location (filename = l1.filename, line = min l1.line l2.line, col = min l1.col l2.col, end_line = max l1.line l2.line, end_col = max l1.col l2.col,
+                      line_bias = l1.line_bias, col_bias = l1.col_bias)
 
 // yacc/lex utilities
 //
