@@ -11,7 +11,7 @@ open System
 open System.Text.RegularExpressions
 open System.Collections.Generic
 open FSharp.Common
-open FSharp.Common.Prelude
+
 open FSharp.Common.Log
 
 // generic environment reporting

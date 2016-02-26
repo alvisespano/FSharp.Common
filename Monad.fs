@@ -20,7 +20,6 @@ module Bits =
     open Computation.Bits
 
     let __Using = Std.__Using
-//    let __Using _TryFinally (v : #System.IDisposable, f) = _TryFinally (f v, fun () -> if v <> null then v.Dispose () else ())
 
     let __For _Bind _Zero _Using (sq : #IEnumerable<_>, f) =
         let rec R (e : System.Collections.Generic.IEnumerator<_>) = 
@@ -35,7 +34,6 @@ module Bits =
             if cond () then _Bind (f, fun _ -> _While (cond, f)) else _Zero ()
 
     let __TryFinally = FunBody.__TryFinally
-//    let __TryFinally (e, fin) = fun (s : 's) -> try e s finally fin ()
 
     let __Combine = Std.__Combine
 
@@ -163,7 +161,6 @@ type List<'s> (M : 's state_builder) =
             | x :: xs -> let! r = f x
                          let! l = this.map f xs
                          return r :: l
-
       }
 
     member __.iter f (l : 'a list) = 

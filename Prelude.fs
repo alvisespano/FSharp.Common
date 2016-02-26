@@ -4,6 +4,7 @@
  * (C) 2007-2012 Alvise Spano' @ Universita' Ca' Foscari di Venezia
  *)
  
+[< AutoOpen >]
 module FSharp.Common.Prelude
 
 open System

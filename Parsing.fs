@@ -9,7 +9,7 @@ module FSharp.Common.Parsing
 open System
 open System.Text.RegularExpressions
 open Microsoft.FSharp.Text  // if removed, any project using types such as Position and LexBuffer will not compile because of name clashing with homonimous types defined elsewhere within F# libs
-open FSharp.Common.Prelude
+
 
 
 (* error locating *)
