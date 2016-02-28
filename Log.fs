@@ -162,12 +162,12 @@ module Color =
     let shade col darkcol n =
         let fg, bg =
             match n with
-                | 0 -> darkcol, C.Black // darker
-                | 1 -> col, C.Black     // normal
-                | 2 -> col, darkcol     // brighter
-//                | 3 -> darkcol, col
-                | 3 -> C.White, darkcol
-                | _ -> C.White, col
+                | 0 -> darkcol, C.Black // darkest
+                | 1 -> col, C.Black     // when threshold = Min, Low = 2; but when threshold = Low (which should be the default threshold), Normal = 1
+                | 2 -> col, darkcol
+                | 3 -> darkcol, col
+                | _ -> C.White, darkcol
+//                | _ -> C.White, col   // white on bright color is barely visible
         in
             fg, if fg = bg then C.Gray else bg
 

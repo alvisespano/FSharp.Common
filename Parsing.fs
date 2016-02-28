@@ -20,14 +20,16 @@ type location (filename : string, line : int, col : int, ?end_line : int, ?end_c
     override this.project_to_comparable = this.filename, this.line, this.col, this.end_line, this.end_col
 
     member val filename = filename
-    member __.line_bias = defaultArg line_bias 0
-    member __.col_bias = defaultArg col_bias 0
-    member this.line = line + this.line_bias
-    member this.col = col + this.col_bias
-    member this.start_line = this.line
-    member this.start_col = this.col
-    member this.end_line = defaultArg end_line this.line + this.line_bias
-    member this.end_col = defaultArg end_col this.col + this.col_bias
+    member val line_bias = defaultArg line_bias 0
+    member val col_bias = defaultArg col_bias 0
+    member this.line = this.absolute_line + this.line_bias
+    member this.col = this.absolute_col + this.col_bias
+    member this.end_line = this.absolute_end_line + this.line_bias
+    member this.end_col = this.absolute_end_col + this.col_bias
+    member val absolute_line = line 
+    member val absolute_col = col 
+    member this.absolute_end_line = defaultArg end_line this.line
+    member this.absolute_end_col = defaultArg end_col this.col
 
     new () = new location ("-", 0, 0)
 
@@ -45,13 +47,14 @@ type location (filename : string, line : int, col : int, ?end_line : int, ?end_c
         let p (filename, line, col) = sprintf "%s:%s,%s" filename line col
         in
             p ((if this.filename = "" then "<UNKNOWN-FILE>" else try IO.Path.GetFileName this.filename with _ -> this.filename),
-                this.pretty_pair (this.start_line, this.end_line),
-                this.pretty_pair (this.start_col, this.end_col))
+                this.pretty_pair (this.line, this.end_line),
+                this.pretty_pair (this.col, this.end_col))
 
     override this.ToString () = this.pretty
 
     static member (+) (l1 : location, l2 : location) =
-        new location (filename = l1.filename, line = min l1.line l2.line, col = min l1.col l2.col, end_line = max l1.line l2.line, end_col = max l1.col l2.col,
+        new location (filename = l1.filename, line = min l1.line l2.line, col = min l1.col l2.col,
+                      end_line = max l1.end_line l2.end_line, end_col = max l1.end_col l2.end_col,
                       line_bias = l1.line_bias, col_bias = l1.col_bias)
 
 // yacc/lex utilities
@@ -99,8 +102,8 @@ let yparse syntax_error parser (tokenizer : Lexing.LexBuffer<_> -> 'tok) tokenTa
 let init_lexbuf filename (lexbuf : Lexing.LexBuffer<_>) =
     let r = { Lexing.Position.pos_bol = 0
               Lexing.Position.pos_fname = filename
-              Lexing.Position.pos_cnum = 1
-              Lexing.Position.pos_lnum = 1 }
+              Lexing.Position.pos_cnum = 0
+              Lexing.Position.pos_lnum = 0 }
     lexbuf.StartPos <- r
     lexbuf.EndPos <- r
 
