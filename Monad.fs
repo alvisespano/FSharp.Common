@@ -80,7 +80,7 @@ type state_builder<'s> () =
     member __.set_state (s : 's) = fun (_ : 's) -> (), s
     member __.lift_state f = fun (s : 's) -> (), f s
 
-    member M.fork f =
+    member M.undo f =
         M {
             let! s = M.get_state
             let! r = f
@@ -101,7 +101,7 @@ let set_state s = fun _ -> ((), s)
 let lift_state f = fun s -> ((), f s)
 let lift f x = fun s -> (f x, s)
 
-let fork (M : _ state_builder) = M.fork
+let undo (M : _ state_builder) = M.undo
 let ignore (M : _ state_builder) = M.ignore
 
 

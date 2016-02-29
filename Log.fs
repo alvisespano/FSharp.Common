@@ -110,14 +110,20 @@ type config (?filename : string) =
     member val show_datetime = true with get, set
     member val show_priority = false with get, set
     member val show_urgency = false with get, set
-    member val text_shade_by_urgency = true with get, set
+    member val show_header = true with get, set
 
-    member this.show_body_only
+    member this.show_message_body_only
         with set b =
             let b = not b
             this.show_datetime <- b
             this.show_priority <- b
             this.show_urgency <- b
+            this.show_elapsed <- b
+            this.show_thread <- b
+            this.show_milliseconds <- b
+            this.show_header <- b
+
+    member val text_shade_by_urgency = true with get, set
 
     member val tab = 0 with get, set    
       
@@ -295,9 +301,10 @@ type console_logger (cfg) =
                         let name = th.Name
                         outsqfg cfg.thread_color cfg.thread_max_len (if th.IsThreadPoolThread then sprintf ":%d" id else sprintf "%s#%d" (if String.IsNullOrEmpty name then "" else name.Trim ()) id)
                 // header
-                match hdo with
-                    | Some hd -> outsq col darkcol cfg.header_max_len hd
-                    | None    -> pad cfg.header_max_len
+                if cfg.show_header then
+                    match hdo with
+                        | Some hd -> outsq col darkcol cfg.header_max_len hd
+                        | None    -> pad cfg.header_max_len
                 // priority
                 if cfg.show_priority then
                     match lvo with
@@ -307,7 +314,7 @@ type console_logger (cfg) =
                 if cfg.show_urgency then
                     Option.iter (fun marks -> outcol cfg.urgency_color ConsoleColor.Black (new String ('!', marks) + spaces (5 - marks))) markso
                 else out " "
-                // body
+                // message body
                 let at = Console.CursorLeft
                 let (bodyfgcol, bodybgcol) =
                     if cfg.text_shade_by_urgency then Color.shade col darkcol (either 1 markso)
