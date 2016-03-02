@@ -129,15 +129,19 @@ module Builder =
 // some useful builder instances
 
 module B =
+    /// Builder for string computation expressions.
     let string = new Builder.itemized_collection<_, _> ("", (fun (c : char) -> new string [|c|]), (+))
 
+    /// Builder for pure set computation expressions.
     let set<'a when 'a : comparison> = new Builder.itemized_collection<'a, Set<'a> > (Set.empty, Set.singleton, Set.union)
 
+    /// Builder for Collection.Generic.HashSet<'a> computation expressions. Argument prj : 'a -> 'b is a projection function to a type 'b for which comparison and equality is enabled.
     let hashset prj = new Builder.itemized_collection<_, _> (empty = new HashSet<_> ({ new IEqualityComparer<_> with
                                                                                           member __.Equals (x, y) = CustomCompare.equals_by prj x y
                                                                                           member __.GetHashCode x = CustomCompare.hash_by prj x }),
                                                              plus1 = (fun x (a : HashSet<_>) -> ignore <| a.Add x; a),
                                                              plus = (fun (a : HashSet<_>) b -> a.UnionWith b; a))
 
+    /// Builder for any .NET generic collection.
     let net_collection<'e, 'a when 'a :> ICollection<'e> and 'a : (new : unit -> 'a)> = new Builder.net_collection<'e, 'a> ()
 

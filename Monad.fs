@@ -56,26 +56,6 @@ type state_builder<'s> () =
             this.Using (sq.GetEnumerator (), R)
     member __.TryWith (e, catch) = fun (s : 's) -> try e s with exn -> catch exn s
 
-     
-    // old version
-//    member __.Delay f = fun (s : 's) -> f () s
-//    member __.Run f = fun (s : 's) -> f s
-//    member __.Bind (e1, e2) = fun (s : 's) -> let r, s' = e1 s in e2 r s'
-//    member __.Return x = fun (s : 's) -> x, s
-//    member M.ReturnFrom f = M { let! r = f in return r }
-//    member __.Zero () = fun (s : 's) -> (), s
-//    member __.For (sq : seq<_>, f) =
-//        let rec R (e : System.Collections.Generic.IEnumerator<_>) = 
-//            if e.MoveNext () then __.Bind (f e.Current, fun _ -> R e)
-//            else __.Zero ()
-//        in
-//            __.Using (sq.GetEnumerator (), R)
-//    member __.Combine (e1, e2) = __.Bind (e1, fun _ -> e2)
-//    member __.TryWith (e, catch) = fun (s : 's) -> try e s with exn -> catch exn s
-//    member __.TryFinally (e, fin) = fun (s : 's) -> try e s finally fin ()
-//    member __.Using (v, f) = __.TryFinally (f v, v.Dispose)
-//    member __.While (cond, f) = if cond () then __.Bind (f, fun _ -> __.While (cond, f)) else __.Zero ()
-
     member __.get_state = fun (s : 's) -> s, s
     member __.set_state (s : 's) = fun (_ : 's) -> (), s
     member __.lift_state f = fun (s : 's) -> (), f s
@@ -94,31 +74,21 @@ type state_builder<'s> () =
           return ()
       }
 
+    member M.short_circuited_logic_binop op short_circuit_when_true f g =
+      M {
+        let! a = f
+        if a = short_circuit_when_true then return a
+        else
+            let! b = g
+            return op a b
+      }
 
-// DEPRECATE: class methods should be used instead
-let get_state = fun s -> (s, s)
-let set_state s = fun _ -> ((), s)
-let lift_state f = fun s -> ((), f s)
-let lift f x = fun s -> (f x, s)
-
-let undo (M : _ state_builder) = M.undo
-let ignore (M : _ state_builder) = M.ignore
+    member M.binop_or x y = M.short_circuited_logic_binop (||) true x y
+    member M.binop_and x y  = M.short_circuited_logic_binop (&&) false x y
 
 
-// binary operator monadic wrappers
-
-let internal short_circuited_logic_binop (M : _ state_builder) op short_circuit_when_true f g =
-  M {
-    let! a = f
-    if a = short_circuit_when_true then return a
-    else
-        let! b = g
-        return op a b
-  }
-
-let (|||) M x = short_circuited_logic_binop M (||) true x
-let (&&&) M x = short_circuited_logic_binop M (&&) false x
-
+// monadic wrapper of famous types
+//
 
 type Option<'s> (M : 's state_builder) =
     member __.something f def o =
