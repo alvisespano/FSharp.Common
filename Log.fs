@@ -10,6 +10,7 @@ open System
 open System.IO
 open Prelude
 open Printf
+open Microsoft.FSharp.Reflection
 
 
 // log line priority type
@@ -89,7 +90,7 @@ type config (?filename : string) =
     member val move_logfile_on_name_change = true with get, set
 
     member val debug_threshold = Min with get, set
-    member val perf_threshold = Min with get, set
+    member val profile_threshold = Min with get, set
     member val msg_threshold = Min with get, set
     member val hint_threshold = Min with get, set
     member val warn_threshold = Min with get, set
@@ -124,6 +125,7 @@ type config (?filename : string) =
             this.show_header <- b
 
     member val text_shade_by_urgency = true with get, set
+    member val show_header_only_when_changes = false with get, set
 
     member val tab = 0 with get, set    
       
@@ -135,11 +137,11 @@ type config (?filename : string) =
     member val priority_max_len = 4 with get, set
     member val header_max_len = 7 with get, set
 
-    member val debug_header = Some "DEBUG" with get, set
-    member val perf_header = Some "PERF" with get, set
-    member val msg_header = Some "INFO" with get, set
-    member val warn_header = Some "WARN" with get, set
-    member val hint_header = Some "HINT" with get, set
+    member val debug_header = "DEBUG" with get, set
+    member val profile_header = "PERF" with get, set
+    member val msg_header = "INFO" with get, set
+    member val warn_header = "WARN" with get, set
+    member val hint_header = "HINT" with get, set
 
     member val datetime_color = ConsoleColor.Gray with get, set
     member val thread_color = ConsoleColor.Blue with get, set
@@ -147,7 +149,7 @@ type config (?filename : string) =
     member val urgency_color = ConsoleColor.White with get, set
     member val square_bracket_color = ConsoleColor.White with get, set
     member val msg_color = ConsoleColor.Gray with get, set
-    member val perf_color = ConsoleColor.Blue with get, set
+    member val profile_color = ConsoleColor.Blue with get, set
     member val debug_color = ConsoleColor.Cyan with get, set
     member val hint_color = ConsoleColor.Green with get, set
     member val warn_color = ConsoleColor.Yellow with get, set
@@ -196,56 +198,78 @@ module Color =
 // public API
 //
 
-type prompt =  int option -> pri option -> string -> unit
+let process_PrintfFormat (f : string * obj list -> 'd) (fmt : PrintfFormat<'a, _, _, 'd>) : 'a = 
+    if not (FSharpType.IsFunction typeof<'a>) then unbox (f (fmt.Value, [])) 
+    else 
+        let rec getFlattenedFunctionElements (functionType : Type) = 
+            let domain, range = FSharpType.GetFunctionElements functionType 
+            in
+                domain :: if not (FSharpType.IsFunction range) then [range] else getFlattenedFunctionElements range
+        let types = getFlattenedFunctionElements typeof<'a> 
+        let rec proc (types : Type list) (values : obj list) (a : obj) : obj = 
+            let values = a :: values 
+            match types with 
+            | [_; _] -> box (f (fmt.Value, List.rev values)) 
+            | _ :: (y :: z :: _ as l) -> 
+                let cont = proc l values 
+                let ft = FSharpType.MakeFunctionType (y, z)
+                let cont = FSharpValue.MakeFunction (ft, cont) 
+                in
+                    box cont
+            | x -> unexpected_case __SOURCE_FILE__ __LINE__ x
+        let handler = proc types [] 
+        in
+            unbox (FSharpValue.MakeFunction (typeof<'a>, handler))
+
 
 type [< AbstractClass >] logger (cfg : config) =
     let tab_history = new System.Collections.Generic.Stack<_> ()
 
-    member this.debug_prompt = this.prompter cfg.debug_header cfg.debug_color
-    member this.hint_prompt = this.prompter cfg.hint_header cfg.hint_color
-    member this.warn_prompt = this.prompter cfg.warn_header cfg.warn_color
-    member this.msg_prompt = this.prompter cfg.msg_header cfg.msg_color
-    member this.perf_prompt = this.prompter cfg.perf_header cfg.perf_color
-    member this.error_prompt fgcol s = this.visible_prompt_printf (this.prompter (Some s) fgcol) None None
-
-    member this.msg lv fmt = this.print this.msg_prompt cfg.msg_threshold lv fmt
-    member this.perf lv fmt = this.print this.perf_prompt cfg.perf_threshold lv fmt
-    member this.debug lv fmt = this.print this.debug_prompt cfg.debug_threshold lv fmt
-    member this.hint lv fmt = this.print this.hint_prompt cfg.hint_threshold lv fmt
-    member this.warn lv fmt = this.print this.warn_prompt cfg.warn_threshold lv fmt
-    member this.custom fgcol header threshold lv fmt = this.print (this.prompter (Some header) fgcol) threshold lv fmt
-    member this.custom_debug fgcol header lv fmt = this.custom fgcol header cfg.debug_threshold lv fmt
-    member this.custom_error fgcol header fmt = this.error_prompt fgcol header fmt
-    member this.fatal_error fmt = this.custom_error cfg.fatal_error_color "FATAL" fmt
-    member this.unexpected_error fmt = this.custom_error cfg.unexpected_error_color "UNEXPECTED" fmt
-    member __.line_feed = Console.WriteLine ""
-
     member val cfg = cfg
 
-    abstract prompter : string option -> ConsoleColor -> prompt
+    member this.log_leveled header fgcol threshold pri fmt = this.printf_leveled header fgcol threshold pri fmt
+    member this.log_unleveled header fgcol fmt = this.printf_unleveled header fgcol fmt
+    member this.log_line s = lock this <| fun () -> printfn "%s" s
+    member this.line_feed = lock this <| fun () -> Console.WriteLine ""
 
-    abstract visible_prompt_printf : prompt -> int option -> pri option -> StringFormat<'a, unit> -> 'a
-    default __.visible_prompt_printf prompt marks lvo fmt = kprintf (prompt marks lvo) fmt    
+    member this.msg pri fmt = this.log_leveled cfg.msg_header cfg.msg_color cfg.msg_threshold pri fmt
+    member this.profile pri fmt = this.log_leveled cfg.profile_header cfg.profile_color cfg.profile_threshold pri fmt
+    member this.debug pri fmt = this.log_leveled cfg.debug_header cfg.debug_color cfg.debug_threshold pri fmt
+    member this.hint pri fmt = this.log_leveled cfg.hint_header cfg.hint_color cfg.hint_threshold pri fmt
+    member this.warn pri fmt = this.log_leveled cfg.warn_header cfg.warn_color cfg.warn_threshold pri fmt
+    member this.fatal_error fmt = this.log_unleveled "FATAL" cfg.fatal_error_color fmt
+    member this.unexpected_error fmt = this.log_unleveled "UNEXPECTED" cfg.unexpected_error_color fmt
 
-    abstract hidden_prompt_printf : prompt -> int option -> pri option -> StringFormat<'a, unit> -> 'a
-    default __.hidden_prompt_printf _ _ _ fmt = kprintf (fun _ -> ()) fmt
+    abstract actually_print : string -> ConsoleColor -> int option -> pri option -> string -> unit
 
-    abstract print : prompt -> pri -> pri -> StringFormat<'a, unit> -> 'a
-    default this.print prompt thre lv fmt =
-        (if lv >= thre then this.visible_prompt_printf else this.hidden_prompt_printf) prompt (Some (int lv - int thre)) (Some lv) fmt
+    abstract visible_printf : string -> ConsoleColor -> int option -> pri option -> Format<'a, unit, string, unit> -> 'a
+    default this.visible_printf header fgcol markno prio fmt = ksprintf (fun s -> lock this <| fun () -> this.actually_print header fgcol markno prio s) fmt
 
-    member __.tab
+    abstract hidden_printf : string -> ConsoleColor -> int option -> pri option -> Format<'a, unit, string, unit> -> 'a
+    default __.hidden_printf _ _ _ _ fmt = process_PrintfFormat (fun (s, vs) -> printfn "fmt = \"%s\"\nargs = %s" s (mappen_stringables (sprintf "[%O]") ", " vs)) fmt
+//    default this.hidden_printf _ _ _ _ fmt = unbox fmt
+
+    member internal this.printf_leveled header fgcol threshold pri fmt =
+        (if pri >= threshold then this.visible_printf else this.hidden_printf) header fgcol (Some (int pri - int threshold)) (Some pri) fmt
+
+    member internal this.printf_unleveled header fgcol fmt =
+        this.visible_printf header fgcol None None fmt
+               
+    member this.tab
         with get () = cfg.tab
         and set n =
-            ignore <| tab_history.Push cfg.tab
-            cfg.tab <- n
+            lock this <| fun () ->
+                ignore <| tab_history.Push cfg.tab
+                cfg.tab <- n
 
-    member this.tabulate n = this.tab <- this.tab + n
+    member this.tabulate n = 
+        lock this <| fun () ->
+            this.tab <- this.tab + n
 
-    member __.undo_tabulate =
-        if tab_history.Count > 0 then
-            cfg.tab <- tab_history.Pop ()
-   
+    member this.undo_tabulate =
+        lock this <| fun () ->
+            if tab_history.Count > 0 then
+                cfg.tab <- tab_history.Pop ()
 
 
 // console logger
@@ -254,7 +278,6 @@ type [< AbstractClass >] logger (cfg : config) =
 type console_logger (cfg) =
     inherit logger (cfg)
 
-    let mutex = new Threading.Mutex ()
     let now0 = DateTime.Now
     let calling_thread_id = Threading.Thread.CurrentThread.ManagedThreadId
     let mutable another_thread_has_logged = false
@@ -275,86 +298,76 @@ type console_logger (cfg) =
     let pad n =
         Console.ResetColor ()
         if cfg.padding_enabled then out (spaces n)
+    let mutable last_header = ""
      
-    override this.prompter (hdo : string option) (col : ConsoleColor) =
-        let darkcol = Color.darken col
-        in
-          fun markso lvo ->
-            let print_on_console (s : string) =
-                // datetime              
-                if cfg.show_datetime then
-                    let now = DateTime.Now
-                    outsqfg cfg.datetime_color cfg.datetime_max_len
-                        (if cfg.show_milliseconds then sprintf "%O.%d" now now.Millisecond else sprintf "%O" now)
-                // elapsed              
-                if cfg.show_elapsed then
-                    let span = DateTime.Now - now0
-                    let len, f = if cfg.show_milliseconds then (10, fun h m s -> sprintf "%02d:%02d:%02d.%03d" h m s span.Milliseconds)
-                                    else 6, sprintf "%02d:%02d:%02d"
-                    outsqfg cfg.datetime_color len (f span.Hours span.Minutes span.Seconds)
-                // thread
-                if cfg.show_thread then
-                    let th = Threading.Thread.CurrentThread
-                    let id = th.ManagedThreadId
-                    if id <> calling_thread_id then another_thread_has_logged <- true
-                    if another_thread_has_logged then
-                        let name = th.Name
-                        outsqfg cfg.thread_color cfg.thread_max_len (if th.IsThreadPoolThread then sprintf ":%d" id else sprintf "%s#%d" (if String.IsNullOrEmpty name then "" else name.Trim ()) id)
-                // header
-                if cfg.show_header then
-                    match hdo with
-                        | Some hd -> outsq col darkcol cfg.header_max_len hd
-                        | None    -> pad cfg.header_max_len
-                // priority
-                if cfg.show_priority then
-                    match lvo with
-                        | Some (lv : pri) -> outsqfg cfg.priority_color cfg.priority_max_len lv.pretty
-                        | None            -> pad cfg.priority_max_len
-                // urgency
-                if cfg.show_urgency then
-                    Option.iter (fun marks -> outcol cfg.urgency_color ConsoleColor.Black (new String ('!', marks) + spaces (5 - marks))) markso
-                else out " "
-                // message body
-                let at = Console.CursorLeft
-                let (bodyfgcol, bodybgcol) =
-                    if cfg.text_shade_by_urgency then Color.shade col darkcol (either 1 markso)
-                    else (col, ConsoleColor.Black)
-                let outbody (tabn, s : string) =
-                    Console.CursorLeft <- at + tabn
-                    Console.ForegroundColor <- bodyfgcol
-                    Console.BackgroundColor <- bodybgcol
-                    Console.Write s
-                    Console.ResetColor ()
-                    Console.WriteLine ()
-                let p (s : string) =
-                    let s = match cfg.tab_to_spaces with Some n -> s.Replace("\t", spaces n) | None -> s
-                    let tablen1 = cfg.tab
-                    let sa =
-                        let len1 = Console.BufferWidth - (at + tablen1) - 1   // length of the first (unpadded) line; the -1 is for rounding down console width
+    override __.actually_print header fgcol markso prio s =
+        let darkcol = Color.darken fgcol
+        // datetime              
+        if cfg.show_datetime then
+            let now = DateTime.Now
+            outsqfg cfg.datetime_color cfg.datetime_max_len
+                (if cfg.show_milliseconds then sprintf "%O.%d" now now.Millisecond else sprintf "%O" now)
+        // elapsed              
+        if cfg.show_elapsed then
+            let span = DateTime.Now - now0
+            let len, f = if cfg.show_milliseconds then (10, fun h m s -> sprintf "%02d:%02d:%02d.%03d" h m s span.Milliseconds)
+                            else 6, sprintf "%02d:%02d:%02d"
+            outsqfg cfg.datetime_color len (f span.Hours span.Minutes span.Seconds)
+        // thread
+        if cfg.show_thread then
+            let th = Threading.Thread.CurrentThread
+            let id = th.ManagedThreadId
+            if id <> calling_thread_id then another_thread_has_logged <- true
+            if another_thread_has_logged then
+                let name = th.Name
+                outsqfg cfg.thread_color cfg.thread_max_len (if th.IsThreadPoolThread then sprintf ":%d" id else sprintf "%s#%d" (if String.IsNullOrEmpty name then "" else name.Trim ()) id)
+        // header
+        if cfg.show_header then
+            if not (String.IsNullOrWhiteSpace header) && ((cfg.show_header_only_when_changes && last_header <> header) || not cfg.show_header_only_when_changes) then
+                last_header <- header
+                outsq fgcol darkcol cfg.header_max_len header
+            else
+                pad cfg.header_max_len
+        // priority
+        if cfg.show_priority then
+            match prio with
+                | Some (lv : pri) -> outsqfg cfg.priority_color cfg.priority_max_len lv.pretty
+                | None            -> pad cfg.priority_max_len
+        // urgency
+        if cfg.show_urgency then
+            Option.iter (fun marks -> outcol cfg.urgency_color ConsoleColor.Black (new String ('!', marks) + spaces (5 - marks))) markso
+        else out " "
+        // message body
+        let at = Console.CursorLeft
+        let (bodyfgcol, bodybgcol) =
+            if cfg.text_shade_by_urgency then Color.shade fgcol darkcol (either 1 markso)
+            else fgcol, ConsoleColor.Black
+        let outbody (tabn, s : string) =
+            Console.CursorLeft <- at + tabn
+            Console.ForegroundColor <- bodyfgcol
+            Console.BackgroundColor <- bodybgcol
+            Console.Write s
+            Console.ResetColor ()
+            Console.WriteLine ()
+        let p (s : string) =
+            let s = match cfg.tab_to_spaces with Some n -> s.Replace("\t", spaces n) | None -> s
+            let tablen1 = cfg.tab
+            let sa =
+                let len1 = Console.BufferWidth - (at + tablen1) - 1   // length of the first (unpadded) line; the -1 is for rounding down console width
+                in
+                    if s.Length > len1 then
+                        let s0 = s.Substring (0, len1)
+                        let sr = s.Substring len1
                         in
-                            if s.Length > len1 then
-                                let s0 = s.Substring (0, len1)
-                                let sr = s.Substring len1
-                                in
-                                  [ yield tablen1, s0
-                                    for s in split_string_on_size (len1 - cfg.multiline_left_pad) sr do
-                                        yield tablen1 + cfg.multiline_left_pad, s ]
-                            else [ tablen1, s ]
-                    for _, s as e in sa do
-                        if not <| String.IsNullOrWhiteSpace s then outbody e
-                Array.iter p (s.Split [|'\n'|])
-
-            in
-                fun (s : string) ->
-                    let s = s.TrimEnd [|' '; '\t'|]
-                    if s.Length > 0 then this.locked_apply <| fun () -> print_on_console s
-
-    member __.locked_apply f = 
-        ignore <| mutex.WaitOne ()
-        try f ()
-        finally mutex.ReleaseMutex ()                            
-
-    member this.print_line s = this.locked_apply <| fun () -> printfn "%s" s
+                            [
+                                yield tablen1, s0
+                                for s in split_string_on_size (len1 - cfg.multiline_left_pad) sr do
+                                    yield tablen1 + cfg.multiline_left_pad, s
+                            ]
+                    else [ tablen1, s ]
+            for _, s as e in sa do
+                if not <| String.IsNullOrWhiteSpace s then outbody e
+        Array.iter p (s.Split [|'\n'|])
 
     interface IDisposable with
         member this.Dispose () =
@@ -376,5 +389,4 @@ type console_logger (cfg) =
 
 type null_logger (cfg) =
     inherit logger (cfg)
-    override __.prompter _ _ = fun _ _ _ -> ()
-
+    override __.actually_print _ _ _ _ _ = ()
