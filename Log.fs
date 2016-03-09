@@ -14,44 +14,44 @@ open Microsoft.FSharp.Reflection
 
 
 // log line priority type
-//
-//
 
-[<CustomEquality; CustomComparison>]
+[< CustomEquality; CustomComparison >]
 type pri = Unmaskerable | High | Normal | Low | Min
 with
     static member Parse = function
-        "U" | "Unmaskerable" -> Unmaskerable
-      | "H" | "High" -> High
-      | "N" | "Normal" -> Normal
-      | "L" | "Low" -> Low
-      | "M" | "Min" -> Min
-      | s   -> invalidArg "s" (sprintf "invalid string '%s'" s)
+        | "U" | "Unmaskerable" -> Unmaskerable
+        | "H" | "High" -> High
+        | "N" | "Normal" -> Normal
+        | "L" | "Low" -> Low
+        | "M" | "Min" -> Min
+        | s -> invalidArg "s" (sprintf "invalid string '%s'" s)
 
-    static member op_Explicit p =
-        match p with
-            Unmaskerable    -> 4
-          | High            -> 3
-          | Normal          -> 2
-          | Low             -> 1
-          | Min             -> 0
+    static member op_Explicit pri =
+        match pri with
+        | Unmaskerable    -> 4
+        | High            -> 3
+        | Normal          -> 2
+        | Low             -> 1
+        | Min             -> 0
 
     override this.Equals yobj = CustomCompare.equals_by int this yobj
     override this.GetHashCode () = CustomCompare.hash_by int this
+
     interface IComparable with
         member this.CompareTo yobj = CustomCompare.compare_by int this yobj
 
     member this.pretty =
         match this with
-            Unmaskerable    -> "U"
-          | High            -> "H"
-          | Normal          -> "N"
-          | Low             -> "L"
-          | Min             -> "M"
+        | Unmaskerable    -> "U"
+        | High            -> "H"
+        | Normal          -> "N"
+        | Low             -> "L"
+        | Min             -> "M"
+
+    override this.ToString () = this.pretty
 
 
 // dynamic configuration
-//
 //
 
 type config (?filename : string) =
@@ -158,26 +158,26 @@ type config (?filename : string) =
 
 
 module Color =
-    type private C = ConsoleColor
+    type t = ConsoleColor
     
     let darken col =
         try
             let colenumty = col.GetType ()
             in
-                C.Parse (colenumty, "dark" + C.GetName (colenumty, col), true) :?> C
-        with _ -> if col = C.Black then C.DarkGray else C.Black
+                t.Parse (colenumty, "dark" + t.GetName (colenumty, col), true) :?> t
+        with _ -> if col = t.Black then t.DarkGray else t.Black
 
     let shade col darkcol n =
         let fg, bg =
             match n with
-                | 0 -> darkcol, C.Black // darkest
-                | 1 -> col, C.Black     // when threshold = Min, Low = 2; but when threshold = Low (which should be the default threshold), Normal = 1
+                | 0 -> darkcol, t.Black // darkest
+                | 1 -> col, t.Black     // when threshold = Min, Low = 2; but when threshold = Low (which should be the default threshold), Normal = 1
                 | 2 -> col, darkcol
                 | 3 -> darkcol, col
-                | _ -> C.White, darkcol
+                | _ -> t.White, darkcol
 //                | _ -> C.White, col   // white on bright color is barely visible
         in
-            fg, if fg = bg then C.Gray else bg
+            fg, if fg = bg then t.Gray else bg
 
     let closest_console_color (r, g, b) =
         let rec R delta z = function
@@ -198,28 +198,25 @@ module Color =
 // public API
 //
 
-let process_PrintfFormat (f : string * obj list -> 'd) (fmt : PrintfFormat<'a, _, _, 'd>) : 'a = 
-    if not (FSharpType.IsFunction typeof<'a>) then unbox (f (fmt.Value, [])) 
-    else 
-        let rec getFlattenedFunctionElements (functionType : Type) = 
-            let domain, range = FSharpType.GetFunctionElements functionType 
+module private FakeFormat =
+    let rec private mkKn (ty : System.Type) =
+        if Reflection.FSharpType.IsFunction ty then
+            let _, ran = Reflection.FSharpType.GetFunctionElements ty
+            let f = mkKn ran    // do not delay `mkKn` invocation until runtime
             in
-                domain :: if not (FSharpType.IsFunction range) then [range] else getFlattenedFunctionElements range
-        let types = getFlattenedFunctionElements typeof<'a> 
-        let rec proc (types : Type list) (values : obj list) (a : obj) : obj = 
-            let values = a :: values 
-            match types with 
-            | [_; _] -> box (f (fmt.Value, List.rev values)) 
-            | _ :: (y :: z :: _ as l) -> 
-                let cont = proc l values 
-                let ft = FSharpType.MakeFunctionType (y, z)
-                let cont = FSharpValue.MakeFunction (ft, cont) 
-                in
-                    box cont
-            | x -> unexpected_case __SOURCE_FILE__ __LINE__ x
-        let handler = proc types [] 
-        in
-            unbox (FSharpValue.MakeFunction (typeof<'a>, handler))
+                Reflection.FSharpValue.MakeFunction (ty, fun _ -> f)
+        else box ()
+
+    [< Sealed >]
+    type Format<'T> private () =
+        static let instance : 'T = unbox (mkKn typeof<'T>)
+        static member Instance = instance
+
+    //let inline dprint verbose args =
+    //    if verbose then
+    //        printfn args
+    //    else
+    //        Format<_>.Instance
 
 
 type [< AbstractClass >] logger (cfg : config) =
@@ -242,12 +239,11 @@ type [< AbstractClass >] logger (cfg : config) =
 
     abstract actually_print : string -> ConsoleColor -> int option -> pri option -> string -> unit
 
-    abstract visible_printf : string -> ConsoleColor -> int option -> pri option -> Format<'a, unit, string, unit> -> 'a
+    abstract visible_printf : string -> ConsoleColor -> int option -> pri option -> StringFormat<'a, unit> -> 'a
     default this.visible_printf header fgcol markno prio fmt = ksprintf (fun s -> lock this <| fun () -> this.actually_print header fgcol markno prio s) fmt
 
-    abstract hidden_printf : string -> ConsoleColor -> int option -> pri option -> Format<'a, unit, string, unit> -> 'a
-    default __.hidden_printf _ _ _ _ fmt = process_PrintfFormat (fun (s, vs) -> printfn "fmt = \"%s\"\nargs = %s" s (mappen_stringables (sprintf "[%O]") ", " vs)) fmt
-//    default this.hidden_printf _ _ _ _ fmt = unbox fmt
+    abstract hidden_printf : string -> ConsoleColor -> int option -> pri option -> StringFormat<'a, unit> -> 'a
+    default __.hidden_printf _ _ _ _ _ = FakeFormat.Format<_>.Instance
 
     member internal this.printf_leveled header fgcol threshold pri fmt =
         (if pri >= threshold then this.visible_printf else this.hidden_printf) header fgcol (Some (int pri - int threshold)) (Some pri) fmt
@@ -385,7 +381,8 @@ type console_logger (cfg) =
 
 
 
-(* other loggers *)
+// null loggers that actually prints nothing
+//
 
 type null_logger (cfg) =
     inherit logger (cfg)

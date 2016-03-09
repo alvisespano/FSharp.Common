@@ -12,6 +12,7 @@ open System.Collections.Generic
 open System.Diagnostics
 open System.Threading
 open Microsoft.FSharp.Reflection
+open Printf
 
 exception Quit
 
@@ -23,7 +24,7 @@ let (|Unexpected|_|) (e : Exception) = match e with :? unexpected_exception -> S
 
 let identity = id
 
-let throw_formatted exnf fmt = Printf.kprintf (fun s -> raise (exnf s)) fmt
+let throw_formatted exnf fmt = kprintf (fun s -> raise (exnf s)) fmt
 
 let (%+%%) (fmt1 : PrintfFormat<'a -> 'r, _, _, 'r>) (fmt2 : PrintfFormat<'b, _, _, 'r>) =
     new PrintfFormat<'a -> 'b, _, _, 'r> (fmt1.Value + fmt2.Value)
@@ -37,28 +38,29 @@ let unexpected_case x = unexpected "unexpected pattern case: %O" x
 let unot_implemented fmt = throw_formatted (fun s -> new NotImplementedException (s)) fmt
 let not_implemented fmt = lexnf unot_implemented fmt
 
-//let process_PrintfFormat (f : string * obj list -> 'd) (fmt : PrintfFormat<'a, _, _, 'd>) : 'a = 
-//    if not (FSharpType.IsFunction typeof<'a>) then unbox (f (fmt.Value, [])) 
-//    else 
-//        let rec getFlattenedFunctionElements (functionType : Type) = 
-//            let domain, range = FSharpType.GetFunctionElements functionType 
-//            in
-//                domain :: if not (FSharpType.IsFunction range) then [range] else getFlattenedFunctionElements range
-//        let types = getFlattenedFunctionElements typeof<'a> 
-//        let rec proc (types : Type list) (values : obj list) (a : obj) : obj = 
-//            let values = a :: values 
-//            match types with 
-//            | [_; _] -> box (f (fmt.Value, List.rev values)) 
-//            | _ :: (y :: z :: _ as l) -> 
-//                let cont = proc l values 
-//                let ft = FSharpType.MakeFunctionType (y, z)
-//                let cont = FSharpValue.MakeFunction (ft, cont) 
-//                in
-//                    box cont 
-//            | x -> unexpected_case __SOURCE_FILE__ __LINE__ x
-//        let handler = proc types [] 
-//        in
-//            unbox (FSharpValue.MakeFunction (typeof<'a>, handler))
+[< System.ObsoleteAttribute("This function is not entirely working and may throw a cast exception.") >]
+let process_PrintfFormat (f : string * obj list -> 'd) (fmt : PrintfFormat<'a, _, _, 'd>) : 'a = 
+    if not (FSharpType.IsFunction typeof<'a>) then unbox (f (fmt.Value, [])) 
+    else 
+        let rec getFlattenedFunctionElements (functionType : Type) = 
+            let domain, range = FSharpType.GetFunctionElements functionType 
+            in
+                domain :: if not (FSharpType.IsFunction range) then [range] else getFlattenedFunctionElements range
+        let types = getFlattenedFunctionElements typeof<'a> 
+        let rec proc (types : Type list) (values : obj list) (a : obj) : obj = 
+            let values = a :: values 
+            match types with 
+            | [_; _] -> box (f (fmt.Value, List.rev values)) 
+            | _ :: (y :: z :: _ as l) -> 
+                let cont = proc l values 
+                let ft = FSharpType.MakeFunctionType (y, z)
+                let cont = FSharpValue.MakeFunction (ft, cont) 
+                in
+                    box cont 
+            | x -> unexpected_case __SOURCE_FILE__ __LINE__ x
+        let handler = proc types [] 
+        in
+            unbox (FSharpValue.MakeFunction (typeof<'a>, handler))
 
 let mappen_strings_or_nothing f empty sep xs =
     match Seq.toList xs with
