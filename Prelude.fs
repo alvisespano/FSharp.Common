@@ -24,22 +24,21 @@ let (|Unexpected|_|) (e : Exception) = match e with :? unexpected_exception -> S
 
 let identity = id
 
-let throw_formatted exnf fmt = kprintf (fun s -> raise (exnf s)) fmt
+let throw_formatted exnf fmt = ksprintf (fun s -> raise (exnf s)) fmt
 
-let (%+%%) (fmt1 : PrintfFormat<'a -> 'r, _, _, 'r>) (fmt2 : PrintfFormat<'b, _, _, 'r>) =
-    new PrintfFormat<'a -> 'b, _, _, 'r> (fmt1.Value + fmt2.Value)
+//[< System.ObsoleteAttribute("Composition of formats is not really versatile or useful.") >]
+//let append_format (fmt1 : PrintfFormat<'a -> 'b, _, _, 'r>) (fmt2 : PrintfFormat<'c, _, _, 'r>) =
+//    new PrintfFormat<'a -> 'b, _, _, 'r> (fmt1.Value + fmt2.Value)
 
-let lexnf exnf fmt = exnf ("%s(" %+%% ("%s): " %+%% fmt))
-let uunexpected fmt = throw_formatted Unexpected fmt
-let unexpected fmt = lexnf uunexpected fmt
+let located_exn exnf (fmt : StringFormat<'a, 'r>) = exnf (StringFormat<string -> string -> 'a, 'r> ("%s(%s): " + fmt.Value))
+let unlocated_unexpected fmt = throw_formatted Unexpected fmt
+let unexpected fmt = located_exn unlocated_unexpected fmt
+let unlocated_not_implemented fmt = throw_formatted NotImplementedException fmt
+let not_implemented fmt = located_exn unlocated_not_implemented fmt
+let unexpected_case __source_file__ __line__ x = unexpected "unexpected pattern case: %O" __source_file__ __line__ x
 
-let unexpected_case x = unexpected "unexpected pattern case: %O" x
-
-let unot_implemented fmt = throw_formatted (fun s -> new NotImplementedException (s)) fmt
-let not_implemented fmt = lexnf unot_implemented fmt
-
-[< System.ObsoleteAttribute("This function is not entirely working and may throw a cast exception.") >]
-let process_PrintfFormat (f : string * obj list -> 'd) (fmt : PrintfFormat<'a, _, _, 'd>) : 'a = 
+[< System.ObsoleteAttribute("This function is not entirely working and may throw a bad cast exception.") >]
+let process_format (f : string * obj list -> 'r) (fmt : PrintfFormat<'a, _, _, 'r>) : 'a = 
     if not (FSharpType.IsFunction typeof<'a>) then unbox (f (fmt.Value, [])) 
     else 
         let rec getFlattenedFunctionElements (functionType : Type) = 
@@ -49,10 +48,10 @@ let process_PrintfFormat (f : string * obj list -> 'd) (fmt : PrintfFormat<'a, _
         let types = getFlattenedFunctionElements typeof<'a> 
         let rec proc (types : Type list) (values : obj list) (a : obj) : obj = 
             let values = a :: values 
-            match types with 
+            match types with
             | [_; _] -> box (f (fmt.Value, List.rev values)) 
             | _ :: (y :: z :: _ as l) -> 
-                let cont = proc l values 
+                let cont = proc l values
                 let ft = FSharpType.MakeFunctionType (y, z)
                 let cont = FSharpValue.MakeFunction (ft, cont) 
                 in

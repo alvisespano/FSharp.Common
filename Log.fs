@@ -212,12 +212,6 @@ module private FakeFormat =
         static let instance : 'T = unbox (mkKn typeof<'T>)
         static member Instance = instance
 
-    //let inline dprint verbose args =
-    //    if verbose then
-    //        printfn args
-    //    else
-    //        Format<_>.Instance
-
 
 type [< AbstractClass >] logger (cfg : config) =
     let tab_history = new System.Collections.Generic.Stack<_> ()
