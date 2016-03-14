@@ -99,16 +99,16 @@ let yparse syntax_error parser (tokenizer : Lexing.LexBuffer<_> -> 'tok) tokenTa
                     in
                         raise (syntax_error (msg, lexbuf))
 
-let init_lexbuf filename (lexbuf : Lexing.LexBuffer<_>) =
+let init_lexbuf filename (start_line, start_col) (lexbuf : Lexing.LexBuffer<_>) =
     let r = { Lexing.Position.pos_bol = 0
               Lexing.Position.pos_fname = filename
-              Lexing.Position.pos_cnum = 0
-              Lexing.Position.pos_lnum = 0 }
+              Lexing.Position.pos_cnum = start_col
+              Lexing.Position.pos_lnum = start_line }
     lexbuf.StartPos <- r
     lexbuf.EndPos <- r
 
-let parse_from_lexbuf syntax_error lexbuf filename parser tokenizer tokenTagToTokenId =
-    init_lexbuf filename lexbuf
+let parse_from_lexbuf syntax_error lexbuf filename (start_line, start_col) parser tokenizer tokenTagToTokenId =
+    init_lexbuf filename (start_line, start_col) lexbuf
     yparse syntax_error parser tokenizer tokenTagToTokenId lexbuf
 
 let parse_from_TextReader syntax_error trd = parse_from_lexbuf syntax_error (Lexing.LexBuffer<_>.FromTextReader trd)
