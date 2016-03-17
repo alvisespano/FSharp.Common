@@ -74,7 +74,7 @@ type t< 'id, [< EqualityConditionalOn; ComparisonConditionalOn >] 'a when 'id : 
     member __.forall p = Map.forall p m
     member __.find_key p = Map.findKey p m
     member __.exists p = Map.exists p m
-    member __.occurs x = Map.containsKey x m
+    member __.contains_key x = Map.containsKey x m
     member __.fold f z = Map.fold f z m
     member __.fold_back f z = Map.foldBack f z m
     member __.toSeq = Map.toSeq m
