@@ -26,24 +26,24 @@ module Report =
 // esit type used by some env manipulation higher-order functions
 
 [< RequireQualifiedAccess >]
-type esit<'id, 'a, 'b> =
-    | Existant of 'id * 'a * 'b
-    | New1 of 'id * 'a
-    | New2 of 'id * 'b
+type esit<'k, 'a, 'b> =
+    | Existant of 'k * 'a * 'b
+    | New1 of 'k * 'a
+    | New2 of 'k * 'b
 
 // map-based environment class
 //
 
-type t< 'id, [< EqualityConditionalOn; ComparisonConditionalOn >] 'a when 'id : comparison> (m : Map<'id, 'a>) =
+type t< 'k, [< EqualityConditionalOn; ComparisonConditionalOn >] 'a when 'k : comparison> (m : Map<'k, 'a>) =
 
-    static member ofMap (m : Map<'id, 'a>) = new t<_, _> (m)
-    static member ofSeq (sq : seq<'id * 'a>) = new t<_, _> (Map.ofSeq sq)
+    static member ofMap (m : Map<'k, 'a>) = new t<_, _> (m)
+    static member ofSeq (sq : seq<'k * 'a>) = new t<_, _> (Map.ofSeq sq)
 
     member __.toMap = m
 
     override x.Equals yobj =
         match yobj with
-        | :? t<'id, 'a> as y -> Unchecked.equals x.toMap y.toMap
+        | :? t<'k, 'a> as y -> Unchecked.equals x.toMap y.toMap
         | _ -> false
  
     override x.GetHashCode () = Unchecked.hash x.toMap
@@ -51,25 +51,26 @@ type t< 'id, [< EqualityConditionalOn; ComparisonConditionalOn >] 'a when 'id : 
     interface System.IComparable with
       member x.CompareTo yobj =
           match yobj with
-          | :? t<'id, 'a> as y -> Unchecked.compare x.toMap y.toMap
+          | :? t<'k, 'a> as y -> Unchecked.compare x.toMap y.toMap
           | _                  -> invalidArg "yobj" "cannot compare values of different types"
 
-    interface IEnumerable<'id * 'a> with
+    interface IEnumerable<'k * 'a> with
         member __.GetEnumerator () = (Map.toSeq m).GetEnumerator ()
 
     interface Collections.IEnumerable with
         member this.GetEnumerator () = (this :> IEnumerable<_>).GetEnumerator () :> Collections.IEnumerator
 
-    new (env : t<_, _>) = new t<'id, 'a> (env.toMap)
-    new () = new t<'id, 'a> (Map.empty)
+    new (env : t<_, _>) = new t<'k, 'a> (env.toMap)
+    new () = new t<'k, 'a> (Map.empty)
 
-    static member empty = new t<'id, 'a> ()
+    static member empty = new t<'k, 'a> ()
 
     member __.is_empty = m.IsEmpty
     member __.length = m.Count
     member __.map f = t<_, _>.ofMap (Map.map f m)
     member __.filter f = t<_, _>.ofMap (Map.filter f m)
     member __.remove x = t<_, _>.ofMap (Map.remove x m)
+    member this.remove (xs : seq<'k>) = Seq.fold (fun (env : t<_, _>) (x : 'k) -> env.remove x) this xs
     member __.find f = Map.findKey f m
     member __.forall p = Map.forall p m
     member __.find_key p = Map.findKey p m
@@ -95,10 +96,8 @@ type t< 'id, [< EqualityConditionalOn; ComparisonConditionalOn >] 'a when 'id : 
     member __.bind x v = t<_, _>.ofMap (Map.add x v m)
 
     member env.binds bs = Seq.fold (fun (env : t<_, _>) (x, v) -> env.bind x v) env bs
-
-    member env.rebind x v = (env.remove x).bind x v
    
-    member this.update x f = this.rebind x (f (this.lookup x))
+    member this.update x f = this.bind x (f (this.lookup x))
 
     member this.effect x f = f (this.lookup x)
 

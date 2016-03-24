@@ -22,8 +22,6 @@ type unexpected_exception (msg) =
 let Unexpected s = new unexpected_exception (s)
 let (|Unexpected|_|) (e : Exception) = match e with :? unexpected_exception -> Some e.Message | _ -> None
 
-let identity = id
-
 let throw_formatted exnf fmt = ksprintf (fun s -> raise (exnf s)) fmt
 
 //[< System.ObsoleteAttribute("Composition of formats is not really versatile or useful.") >]
@@ -67,13 +65,13 @@ let mappen_strings_or_nothing f empty sep xs =
       | [x]     -> f x
       | x :: xs -> Seq.fold (fun r x -> r + sep + (f x)) (f x) xs
 
-let flatten_strings_or_nothing empty = mappen_strings_or_nothing identity empty
+let flatten_strings_or_nothing empty = mappen_strings_or_nothing id empty
 
 let flatten_strings sep = flatten_strings_or_nothing "" sep
 let mappen_strings f = mappen_strings_or_nothing f ""
 
 let mappen_stringables f = mappen_strings (f >> sprintf "%O")
-let flatten_stringables sep = mappen_stringables identity sep
+let flatten_stringables sep = mappen_stringables id sep
 
 let separate2 f = List.fold (fun (aa, bb) x -> match f x with Choice1Of2 a -> (a :: aa, bb) | Choice2Of2 b -> (aa, b :: bb)) ([], [])
 
@@ -251,7 +249,7 @@ module CustomCompare =
                     | :? 'this as y -> (x : based_on_compare<'this>).compare y
                     | _             -> invalidArg "yobj" "cannot compare values of different types"
         override x.Equals yobj = (x :> IComparable).CompareTo yobj = 0
-        override x.GetHashCode () = hash_by identity x
+        override x.GetHashCode () = hash_by id x
         abstract compare : 'this -> int
         
     type [< AbstractClass >] project_by_property<'a when 'a : comparison> () =

@@ -87,7 +87,7 @@ module Threading =
     type mut<'a> (x) =
         inherit sync<'a> (x)
         member this.value 
-            with get () = base.apply identity
+            with get () = base.apply id
             and set x = base.value <- x
       
 
