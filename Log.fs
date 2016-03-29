@@ -90,7 +90,7 @@ type config (?filename : string) =
     member val move_logfile_on_name_change = true with get, set
 
     member val debug_threshold = Min with get, set
-    member val profile_threshold = Min with get, set
+    member val custom_debug_threshold = Min with get, set
     member val msg_threshold = Min with get, set
     member val hint_threshold = Min with get, set
     member val warn_threshold = Min with get, set
@@ -98,12 +98,21 @@ type config (?filename : string) =
     member val has_console = (try (ignore Console.CursorLeft; true) with _ -> false)
 
     abstract all_thresholds : pri with set
-    default this.all_thresholds
+    default this.all_thresholds        
         with set pri =
             this.debug_threshold <- pri
             this.msg_threshold <- pri
             this.hint_threshold <- pri
             this.warn_threshold <- pri
+
+    member this.thresholds 
+        with get () = this.debug_threshold, this.custom_debug_threshold, this.msg_threshold, this.hint_threshold, this.warn_threshold
+        and set (d, p, m, h, w) =
+            this.debug_threshold <- d
+            this.custom_debug_threshold <- p
+            this.msg_threshold <- m
+            this.hint_threshold <- h
+            this.warn_threshold <- w
 
     member val show_thread = false with get, set
     member val show_milliseconds = false with get, set
@@ -138,7 +147,6 @@ type config (?filename : string) =
     member val header_max_len = 7 with get, set
 
     member val debug_header = "DEBUG" with get, set
-    member val profile_header = "PERF" with get, set
     member val msg_header = "INFO" with get, set
     member val warn_header = "WARN" with get, set
     member val hint_header = "HINT" with get, set
@@ -149,8 +157,8 @@ type config (?filename : string) =
     member val urgency_color = ConsoleColor.White with get, set
     member val square_bracket_color = ConsoleColor.White with get, set
     member val msg_color = ConsoleColor.Gray with get, set
-    member val profile_color = ConsoleColor.Blue with get, set
     member val debug_color = ConsoleColor.Cyan with get, set
+    member val custom_debug_color = ConsoleColor.Blue with get, set
     member val hint_color = ConsoleColor.Green with get, set
     member val warn_color = ConsoleColor.Yellow with get, set
     member val fatal_error_color = ConsoleColor.Red with get, set
@@ -224,8 +232,8 @@ type [< AbstractClass >] logger (cfg : config) =
     member this.line_feed = lock this <| fun () -> Console.WriteLine ""
 
     member this.msg pri fmt = this.log_leveled cfg.msg_header cfg.msg_color cfg.msg_threshold pri fmt
-    member this.profile pri fmt = this.log_leveled cfg.profile_header cfg.profile_color cfg.profile_threshold pri fmt
     member this.debug pri fmt = this.log_leveled cfg.debug_header cfg.debug_color cfg.debug_threshold pri fmt
+    member this.custom_debug header pri fmt = this.log_leveled header cfg.custom_debug_color cfg.custom_debug_threshold pri fmt // custom_debug can be used as secondary debug channel, specifying a custom header
     member this.hint pri fmt = this.log_leveled cfg.hint_header cfg.hint_color cfg.hint_threshold pri fmt
     member this.warn pri fmt = this.log_leveled cfg.warn_header cfg.warn_color cfg.warn_threshold pri fmt
     member this.fatal_error fmt = this.log_unleveled "FATAL" cfg.fatal_error_color fmt
