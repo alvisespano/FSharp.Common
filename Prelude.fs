@@ -35,15 +35,20 @@ let unlocated_not_implemented fmt = throw_formatted NotImplementedException fmt
 let not_implemented fmt = located_exn unlocated_not_implemented fmt
 let unexpected_case __source_file__ __line__ x = unexpected "unexpected pattern case: %O" __source_file__ __line__ x
 
+
+// printf format processing
+//
+
+let rec get_flattened_function_arguments (functionType : Type) = 
+    let domain, range = FSharpType.GetFunctionElements functionType 
+    in
+        domain :: if not (FSharpType.IsFunction range) then [range] else get_flattened_function_arguments range
+
 [< System.ObsoleteAttribute("This function is not entirely working and may throw a bad cast exception.") >]
 let process_format (f : string * obj list -> 'r) (fmt : PrintfFormat<'a, _, _, 'r>) : 'a = 
     if not (FSharpType.IsFunction typeof<'a>) then unbox (f (fmt.Value, [])) 
     else 
-        let rec getFlattenedFunctionElements (functionType : Type) = 
-            let domain, range = FSharpType.GetFunctionElements functionType 
-            in
-                domain :: if not (FSharpType.IsFunction range) then [range] else getFlattenedFunctionElements range
-        let types = getFlattenedFunctionElements typeof<'a> 
+        let types = get_flattened_function_arguments typeof<'a> 
         let rec proc (types : Type list) (values : obj list) (a : obj) : obj = 
             let values = a :: values 
             match types with
@@ -58,6 +63,10 @@ let process_format (f : string * obj list -> 'r) (fmt : PrintfFormat<'a, _, _, '
         let handler = proc types [] 
         in
             unbox (FSharpValue.MakeFunction (typeof<'a>, handler))
+
+
+// list of strings mappers
+//
 
 let mappen_strings_or_nothing f empty sep xs =
     match Seq.toList xs with
