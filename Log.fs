@@ -207,17 +207,17 @@ module Color =
 //
 
 module private FakeFormat =
-    let rec private mkKn (ty : System.Type) =
+    let rec private make_curried_fun (ty : System.Type) =
         if Reflection.FSharpType.IsFunction ty then
             let _, ran = Reflection.FSharpType.GetFunctionElements ty
-            let f = mkKn ran    // do not delay `mkKn` invocation until runtime
+            let f = make_curried_fun ran    // do not delay invocation until runtime
             in
                 Reflection.FSharpValue.MakeFunction (ty, fun _ -> f)
         else box ()
 
     [< Sealed >]
     type Format<'T> private () =
-        static let instance : 'T = unbox (mkKn typeof<'T>)
+        static let instance : 'T = unbox (make_curried_fun typeof<'T>)
         static member Instance = instance
 
 
