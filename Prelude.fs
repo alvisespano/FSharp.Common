@@ -24,10 +24,6 @@ let (|Unexpected|_|) (e : Exception) = match e with :? unexpected_exception -> S
 
 let throw_formatted exnf fmt = ksprintf (fun s -> raise (exnf s)) fmt
 
-//[< System.ObsoleteAttribute("Composition of formats is not really versatile or useful.") >]
-//let append_format (fmt1 : PrintfFormat<'a -> 'b, _, _, 'r>) (fmt2 : PrintfFormat<'c, _, _, 'r>) =
-//    new PrintfFormat<'a -> 'b, _, _, 'r> (fmt1.Value + fmt2.Value)
-
 let located_exn exnf (fmt : StringFormat<'a, 'r>) = exnf (StringFormat<string -> string -> 'a, 'r> ("%s(%s): " + fmt.Value))
 let unlocated_unexpected fmt = throw_formatted Unexpected fmt
 let unexpected fmt = located_exn unlocated_unexpected fmt
