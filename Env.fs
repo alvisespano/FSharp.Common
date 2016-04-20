@@ -70,7 +70,7 @@ type t< 'k, [< EqualityConditionalOn; ComparisonConditionalOn >] 'a when 'k : co
     member __.map f = t<_, _>.ofMap (Map.map f m)
     member __.filter f = t<_, _>.ofMap (Map.filter f m)
     member __.remove x = t<_, _>.ofMap (Map.remove x m)
-    member this.remove (xs : seq<'k>) = Seq.fold (fun (env : t<_, _>) (x : 'k) -> env.remove x) this xs
+    member this.remove (xs : #seq<'k>) = Seq.fold (fun (env : t<_, _>) (x : 'k) -> env.remove x) this xs
     member __.find f = Map.findKey f m
     member __.forall p = Map.forall p m
     member __.find_key p = Map.findKey p m
@@ -82,7 +82,8 @@ type t< 'k, [< EqualityConditionalOn; ComparisonConditionalOn >] 'a when 'k : co
     member __.toList = Map.toList m
     member __.toArray = Map.toArray m
 
-    member this.keys = seq { for x, _ in this -> x }
+    member this.keys = seq { for x, _ in this do yield x }
+    member this.values = seq { for _, x in this do yield x }
     member this.dom = this.keys |> Set.ofSeq
 
     member __.search_by p = Map.tryPick (fun x v -> if p x v then Some (x, v) else None) m

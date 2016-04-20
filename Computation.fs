@@ -129,11 +129,18 @@ module Builder =
 // some useful builder instances
 
 module B =
+
     /// Builder for string computation expressions.
     let string = new Builder.itemized_collection<_, _> ("", (fun (c : char) -> new string [|c|]), (+))
 
     /// Builder for pure set computation expressions.
     let set<'a when 'a : comparison> = new Builder.itemized_collection<'a, Set<'a> > (Set.empty, Set.singleton, Set.union)
+
+    /// Builder for pure set computation expressions.
+    let map<'k, 'v when 'k : comparison> =
+        new Builder.itemized_collection<'k * 'v, Map<'k, 'v>> (empty = Map.empty,
+                                                               plus1 = (fun (k, v) m -> Map.add k v m),
+                                                               plus = (fun m1 m2 -> Seq.fold (fun m (kv : KeyValuePair<'k, 'v>) -> Map.add kv.Key kv.Value m) m1 m2))
 
     /// Builder for Collection.Generic.HashSet<'a> computation expressions. Argument prj : 'a -> 'b is a projection function to a type 'b for which comparison and equality is enabled.
     let hashset prj = new Builder.itemized_collection<_, _> (empty = new HashSet<_> ({ new IEqualityComparer<_> with
