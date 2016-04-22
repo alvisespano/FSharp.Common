@@ -67,9 +67,9 @@ type t< 'k, [< EqualityConditionalOn; ComparisonConditionalOn >] 'a when 'k : co
 
     member __.is_empty = m.IsEmpty
     member __.length = m.Count
-    member __.map f = t<_, _>.ofMap (Map.map f m)
-    member __.filter f = t<_, _>.ofMap (Map.filter f m)
-    member __.remove x = t<_, _>.ofMap (Map.remove x m)
+    member __.map f = t<_, _>.ofMap <| Map.map f m
+    member __.filter f = t<_, _>.ofMap <| Map.filter f m
+    member __.remove x = t<_, _>.ofMap <| Map.remove x m
     member this.remove (xs : #seq<'k>) = Seq.fold (fun (env : t<_, _>) (x : 'k) -> env.remove x) this xs
     member __.find f = Map.findKey f m
     member __.forall p = Map.forall p m
