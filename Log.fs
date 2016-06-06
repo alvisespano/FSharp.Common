@@ -239,10 +239,10 @@ type [< AbstractClass >] logger (cfg : config) =
     member this.fatal_error fmt = this.log_unleveled "FATAL" cfg.fatal_error_color fmt
     member this.unexpected_error fmt = this.log_unleveled "UNEXPECTED" cfg.unexpected_error_color fmt
 
-    abstract actually_print : string -> ConsoleColor -> int option -> pri option -> string -> unit
+    abstract actually_print : string * ConsoleColor * int option * pri option * string -> unit
 
     abstract visible_printf : string -> ConsoleColor -> int option -> pri option -> StringFormat<'a, unit> -> 'a
-    default this.visible_printf header fgcol markno prio fmt = ksprintf (fun s -> lock this <| fun () -> this.actually_print header fgcol markno prio s) fmt
+    default this.visible_printf header fgcol markno prio fmt = ksprintf (fun s -> lock this <| fun () -> this.actually_print (header, fgcol, markno, prio, s)) fmt
 
     abstract hidden_printf : string -> ConsoleColor -> int option -> pri option -> StringFormat<'a, unit> -> 'a
     default __.hidden_printf _ _ _ _ _ = FakeFormat.Format<_>.Instance
@@ -276,6 +276,7 @@ type [< AbstractClass >] logger (cfg : config) =
 type console_logger (cfg) =
     inherit logger (cfg)
 
+    let mutable last_header = ""
     let now0 = DateTime.Now
     let calling_thread_id = Threading.Thread.CurrentThread.ManagedThreadId
     let mutable another_thread_has_logged = false
@@ -296,9 +297,8 @@ type console_logger (cfg) =
     let pad n =
         Console.ResetColor ()
         if cfg.padding_enabled then out (spaces n)
-    let mutable last_header = ""
      
-    override __.actually_print header fgcol markso prio s =
+    override __.actually_print (header, fgcol, markso, prio, s) =
         let darkcol = Color.darken fgcol
         // datetime              
         if cfg.show_datetime then
@@ -388,4 +388,4 @@ type console_logger (cfg) =
 
 type null_logger (cfg) =
     inherit logger (cfg)
-    override __.actually_print _ _ _ _ _ = ()
+    override __.actually_print (_, _, _, _, _) = ()

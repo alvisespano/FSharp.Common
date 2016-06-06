@@ -122,9 +122,6 @@ let truncate_string_with_ellipsis n (s : string) =
 let capitalize (s : string) =
     if s.Length > 1 then s.Substring(0, 1).ToUpper() + s.Substring(1) else s.ToUpper()
 
-let (|Capitalized|) s = capitalize s
-let (|Uppercased|) (s : string) = s.ToUpper ()
-let (|Lowercased|) (s : string) = s.ToLower ()
 
 let cputime f x = 
     let proc = Process.GetCurrentProcess ()
@@ -160,17 +157,17 @@ type delayed<'a> (f) =
     member __.Value
         with get () : 'a =
             match x with
-                | None ->
-                    try
-                        let r = f ()
-                        x <- Some (Choice1Of2 r)
-                        r
-                    with e ->
-                        x <- Some (Choice2Of2 e)
-                        reraise ()
+            | None ->
+                try
+                    let r = f ()
+                    x <- Some (Choice1Of2 r)
+                    r
+                with e ->
+                    x <- Some (Choice2Of2 e)
+                    reraise ()
 
-                | Some (Choice1Of2 r) -> r
-                | Some (Choice2Of2 e) -> raise e
+            | Some (Choice1Of2 r) -> r
+            | Some (Choice2Of2 e) -> raise e
 
     override this.ToString () = this.Value.ToString ()
 
