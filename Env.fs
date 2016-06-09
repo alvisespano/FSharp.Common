@@ -23,10 +23,10 @@ module Report =
     let unbound_symbol x = throw_formatted UnboundSymbol "%O" x
     let unbound_symbol_in_named_env name x = throw_formatted UnboundSymbol "%O in %s envinronment" x name
 
-// esit type used by some env manipulation higher-order functions
+// choice type used by some env manipulation higher-order functions
 
 [< RequireQualifiedAccess >]
-type esit<'k, 'a, 'b> =
+type choice<'k, 'a, 'b> =
     | Existant of 'k * 'a * 'b
     | New1 of 'k * 'a
     | New2 of 'k * 'b
@@ -104,34 +104,34 @@ type t< 'k, [< EqualityConditionalOn; ComparisonConditionalOn >] 'a when 'k : co
 
     member env1.diff1 f z (env2 : t<_, _>) =
         let f z x v2 =
-            let esit = 
+            let choice = 
                 match env1.search x with
                     | Some v1 -> Choice1Of2 (x, v1, v2)
                     | None    -> Choice2Of2 (x, v2)
             in
-                f z esit
+                f z choice
         in
             env2.fold f z
 
     member env1.diff f z env2 =
         let z =
             let f z = function
-                | Choice1Of2 (x, v1, v2) -> f z (esit.Existant (x, v1, v2))
-                | Choice2Of2 (x, v2)     -> f z (esit.New2 (x, v2))
+                | Choice1Of2 (x, v1, v2) -> f z (choice.Existant (x, v1, v2))
+                | Choice2Of2 (x, v2)     -> f z (choice.New2 (x, v2))
             in
                 env1.diff1 f z env2
         let f z = function
             | Choice1Of2 (x, _, _)   -> z
-            | Choice2Of2 (x, v1)     -> f z (esit.New1 (x, v1))
+            | Choice2Of2 (x, v1)     -> f z (choice.New1 (x, v1))
         in
             env2.diff1 f z env1
 
     member env1.compose f env2 =
         env1.diff (fun (env : t<_, _>) ->
-                        function esit.Existant (x, _, _)
-                               | esit.New1 (x, _)
-                               | esit.New2 (x, _) as esit ->
-                                    match f esit with
+                        function choice.Existant (x, _, _)
+                               | choice.New1 (x, _)
+                               | choice.New2 (x, _) as choice ->
+                                    match f choice with
                                         | Some v -> env.bind x v
                                         | None   -> env)
             t<_, _>.empty env2
@@ -139,9 +139,9 @@ type t< 'k, [< EqualityConditionalOn; ComparisonConditionalOn >] 'a when 'k : co
     static member (+) (env1 : t<_, _>, env2 : t<_, _>) = env1.binds env2.toSeq
 
     static member (-) (env1 : t<_, _>, env2) =
-        env1.compose (function esit.Existant (_, _, _)
-                             | esit.New2 (_, _) -> None
-                             | esit.New1 (_, y) -> Some y)
+        env1.compose (function choice.Existant (_, _, _)
+                             | choice.New2 (_, _) -> None
+                             | choice.New1 (_, y) -> Some y)
                         env2
 
     member this.pretty_by_binding p sep =

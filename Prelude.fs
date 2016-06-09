@@ -1,7 +1,7 @@
 ﻿(*
  * F# Common Library
  * Prelude.fs: misc stuff
- * (C) 2007-2012 Alvise Spano' @ Universita' Ca' Foscari di Venezia
+ * (C) 2007-2016 Alvise Spano' @ Universita' Ca' Foscari di Venezia
  *)
  
 [< AutoOpen >]
@@ -131,6 +131,10 @@ let cputime f x =
     in
         r, span
 
+let disposable_by f =
+    { new IDisposable with
+        member __.Dispose () = f ()
+    }
 
 type syncbox<'a> (x : 'a) =
     let mx = new Mutex ()
