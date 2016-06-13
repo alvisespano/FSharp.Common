@@ -131,10 +131,17 @@ let cputime f x =
     in
         r, span
 
-let disposable_by f =
-    { new IDisposable with
-        member __.Dispose () = f ()
-    }
+type disposable_base (f) =
+    interface IDisposable with
+        member this.Dispose () =
+            this.Dispose true
+            GC.SuppressFinalize this
+    
+    abstract Dispose : bool -> unit
+    default __.Dispose disposing =
+        if disposing then f ()
+
+let disposable_by f = new disposable_base (f) :> IDisposable
 
 type syncbox<'a> (x : 'a) =
     let mx = new Mutex ()
