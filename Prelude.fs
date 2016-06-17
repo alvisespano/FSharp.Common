@@ -14,6 +14,9 @@ open System.Threading
 open Microsoft.FSharp.Reflection
 open Printf
 
+// some basic exceptions and exception formatting
+//
+
 exception Quit
 
 type unexpected_exception (msg) =
@@ -30,6 +33,9 @@ let unexpected fmt = located_exn unlocated_unexpected fmt
 let unlocated_not_implemented fmt = throw_formatted NotImplementedException fmt
 let not_implemented fmt = located_exn unlocated_not_implemented fmt
 let unexpected_case __source_file__ __line__ x = unexpected "unexpected pattern case: %O" __source_file__ __line__ x
+
+let rec pretty_exn_and_inners (e : exn) =
+    e.Message + (match e.InnerException with null -> "" | _ -> "\nThis is due to an inner exception: " + pretty_exn_and_inners e.InnerException)
 
 
 // printf format processing
@@ -77,6 +83,10 @@ let mappen_strings f = mappen_strings_or_nothing f ""
 
 let mappen_stringables f = mappen_strings (f >> sprintf "%O")
 let flatten_stringables sep = mappen_stringables id sep
+
+
+// misc stuff
+//
 
 let separate2 f = List.fold (fun (aa, bb) x -> match f x with Choice1Of2 a -> (a :: aa, bb) | Choice2Of2 b -> (aa, b :: bb)) ([], [])
 
@@ -131,17 +141,59 @@ let cputime f x =
     in
         r, span
 
-type disposable_base (f) =
+let trap f x = try Some (f x) with _ -> None
+let private trapn trap f a = trap (f a)
+let trap2 f = trapn trap f
+let trap3 f = trapn trap2 f
+let trap4 f = trapn trap3 f
+let trap5 f = trapn trap4 f
+
+let uncurry2 f (a, b) = f a b 
+let uncurry3 f (a, b, c) = f a b c 
+let uncurry4 f (a, b, c, d) = f a b c d 
+let uncurry5 f (a, b, c, d, e) = f a b c d e
+
+let curry2 f a b = f (a, b)
+let curry3 f a b c = f (a, b, c)
+let curry4 f a b c d = f (a, b, c, d)
+let curry5 f a b c d e = f (a, b, c, d, e)
+
+let inline (!>) (x : ^a) : ^b = ((^a or ^b) : (static member op_Implicit : ^a -> ^b) x)
+let inline (!>>) x = !> (!> x)
+
+
+// disposable facilities
+//
+
+type [< AbstractClass >] disposable_base () =
+    let mutable disposed = false
+
     interface IDisposable with
         member this.Dispose () =
             this.Dispose true
             GC.SuppressFinalize this
     
-    abstract Dispose : bool -> unit
-    default __.Dispose disposing =
-        if disposing then f ()
+    override this.Finalize () = this.Dispose false
 
-let disposable_by f = new disposable_base (f) :> IDisposable
+    abstract Dispose : bool -> unit
+    default this.Dispose disposing =
+        if not disposed then
+            disposed <- true
+            if disposing then this.cleanup_managed ()
+            this.cleanup_unmanaged ()
+
+    abstract cleanup_managed : unit -> unit
+    abstract cleanup_unmanaged : unit -> unit
+    default __.cleanup_unmanaged () = ()  
+
+
+let disposable_by f =
+    { new disposable_base () with
+        override __.cleanup_managed () = f () } :> IDisposable
+
+
+// syncbox stuff
+//
 
 type syncbox<'a> (x : 'a) =
     let mx = new Mutex ()
@@ -161,6 +213,9 @@ type syncbox<'a> (x : 'a) =
     member this.value
         with set x' = this.apply_and_set <| fun _ -> x'
 
+
+// delayed stuff
+//
 
 type delayed<'a> (f) =
     let mutable x = None
@@ -201,29 +256,8 @@ let async_delayed f =
                 | Choice2Of2 e -> raise e)
 
 
-let trap f x = try Some (f x) with _ -> None
-let private trapn trap f a = trap (f a)
-let trap2 f = trapn trap f
-let trap3 f = trapn trap2 f
-let trap4 f = trapn trap3 f
-let trap5 f = trapn trap4 f
-
-let uncurry2 f (a, b) = f a b 
-let uncurry3 f (a, b, c) = f a b c 
-let uncurry4 f (a, b, c, d) = f a b c d 
-let uncurry5 f (a, b, c, d, e) = f a b c d e
-
-let curry2 f a b = f (a, b)
-let curry3 f a b c = f (a, b, c)
-let curry4 f a b c d = f (a, b, c, d)
-let curry5 f a b c d e = f (a, b, c, d, e)
-
-let inline (!>) (x : ^a) : ^b = ((^a or ^b) : (static member op_Implicit : ^a -> ^b) x)
-let inline (!>>) x = !> (!> x)
-
-let rec pretty_exn_and_inners (e : exn) =
-    e.Message + (match e.InnerException with null -> "" | _ -> "\nThis is due to an inner exception: " + pretty_exn_and_inners e.InnerException)
-
+// debugger stuff
+//
 
 module Breakpoint =
     open System.Diagnostics
@@ -236,6 +270,9 @@ module Breakpoint =
 
     let inline normal name = conditional name true
 
+
+// comparison facilities
+//
 
 module CustomCompare =
 
@@ -277,6 +314,11 @@ module CustomCompare =
         inherit project_by_property<'a> ()
         override this.project_to_comparable = f this
 
+
+// logic
+//
+
+[< System.Obsolete("Logic module is not very useful and will probably be deprecated soon.") >]
 module Logic =
 
     type boolean (b : bool) =
