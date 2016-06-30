@@ -192,28 +192,6 @@ let disposable_by f =
         override __.cleanup_managed () = f () } :> IDisposable
 
 
-// syncbox stuff
-//
-
-type syncbox<'a> (x : 'a) =
-    let mx = new Mutex ()
-    let mutable x = x
-
-    member __.apply_and_set f =
-        ignore <| mx.WaitOne ()
-        x <- f x
-        mx.ReleaseMutex ()
-        
-    member __.apply f =
-        ignore <| mx.WaitOne ()
-        let r = f x
-        mx.ReleaseMutex ()
-        r
-
-    member this.value
-        with set x' = this.apply_and_set <| fun _ -> x'
-
-
 // delayed stuff
 //
 

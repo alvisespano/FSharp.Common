@@ -89,6 +89,7 @@ module Threading =
         member this.value 
             with get () = base.apply id
             and set x = base.value <- x
+
       
 
 module Regex =
@@ -119,16 +120,7 @@ module Collection =
         in
             sq e 
 
-
-    /// special collection types
-    //
-
-    type cyclic_queue<'a> (max_len) =
-        inherit Queue<'a> ()
-        member this.Enqueue x =
-            if this.Count >= max_len then this.Dequeue () |> ignore
-            base.Enqueue x
-        
+       
 
 module Seq =
  
