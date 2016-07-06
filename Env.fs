@@ -39,19 +39,19 @@ type t< 'k, [< EqualityConditionalOn; ComparisonConditionalOn >] 'a when 'k : co
     static member ofMap (m : Map<'k, 'a>) = new t<_, _> (m)
     static member ofSeq (sq : seq<'k * 'a>) = new t<_, _> (Map.ofSeq sq)
 
-    member __.toMap = m
+    member __.to_map = m
 
     override x.Equals yobj =
         match yobj with
-        | :? t<'k, 'a> as y -> Unchecked.equals x.toMap y.toMap
+        | :? t<'k, 'a> as y -> Unchecked.equals x.to_map y.to_map
         | _ -> false
  
-    override x.GetHashCode () = Unchecked.hash x.toMap
+    override x.GetHashCode () = Unchecked.hash x.to_map
  
     interface System.IComparable with
       member x.CompareTo yobj =
           match yobj with
-          | :? t<'k, 'a> as y -> Unchecked.compare x.toMap y.toMap
+          | :? t<'k, 'a> as y -> Unchecked.compare x.to_map y.to_map
           | _                  -> invalidArg "yobj" "cannot compare values of different types"
 
     interface IEnumerable<'k * 'a> with
@@ -60,7 +60,7 @@ type t< 'k, [< EqualityConditionalOn; ComparisonConditionalOn >] 'a when 'k : co
     interface Collections.IEnumerable with
         member this.GetEnumerator () = (this :> IEnumerable<_>).GetEnumerator () :> Collections.IEnumerator
 
-    new (env : t<_, _>) = new t<'k, 'a> (env.toMap)
+    new (env : t<_, _>) = new t<'k, 'a> (env.to_map)
     new () = new t<'k, 'a> (Map.empty)
 
     static member empty = new t<'k, 'a> ()
