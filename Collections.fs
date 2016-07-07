@@ -76,7 +76,7 @@ type cset<'a when 'a : comparison> (set : 'a Set, ?is_complemented) =
     static member (+) (a : 'a cset, b) = a.union b
 
     member this.pretty = this.ToString ()
-    override this.ToString () = sprintf "cset %s[%s]" (if this.is_complemented then "!" else "") (flatten_stringables "; " this.set)
+    override this.ToString () = sprintf "cset [%s %s]" (if this.is_complemented then "!" else "") (flatten_stringables "; " this.set)
 
 
 
