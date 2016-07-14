@@ -1,7 +1,7 @@
 ﻿(*
  * F# Common Library
  * Collections.fs: special collections and containers
- * (C) 2007-2012 Alvise Spano' @ Universita' Ca' Foscari di Venezia
+ * (C) 2007-2016 Alvise Spano' @ Universita' Ca' Foscari di Venezia
  *)
  
 module FSharp.Common.Collections
@@ -19,7 +19,7 @@ type cset<'a when 'a : comparison> (set : 'a Set, ?is_complemented) =
             if x.is_complemented then Exc set
             else Inc set
 
-    new (sq : 'a seq, ?is_complemented) = new cset<'a> (Set sq, ?is_complemented = is_complemented)
+    new (sq : 'a seq, ?is_complemented) = cset (Set sq, ?is_complemented = is_complemented)
 
     member val is_complemented = defaultArg is_complemented false
     member val private set = set
@@ -37,9 +37,10 @@ type cset<'a when 'a : comparison> (set : 'a Set, ?is_complemented) =
           | :? cset<'a> as y -> if x = y then 0 elif x.intersect y = x then -1 else 1
           | _ -> invalidArg "yobj" "cannot compare values of different types"
 
-    static member complemented (set : Set<'a>) = new cset<'a> (set, true)
+    static member complemented (set : 'a Set) = cset (set, true)
     static member universe = cset<'a>.complemented Set.empty
     static member empty = cset Set.empty
+    static member singleton x = cset <| Set.singleton x
 
     member private this.apply inc exc = new cset<'a> ((if this.is_complemented then exc else inc) set, this.is_complemented)            
     member this.add x = this.apply (Set.add x) (Set.remove x)
@@ -47,7 +48,7 @@ type cset<'a when 'a : comparison> (set : 'a Set, ?is_complemented) =
     member this.contains x = (if this.is_complemented then not else id) (Set.contains x set)
     member this.is_universe = this.is_complemented && Set.isEmpty set
     member this.is_empty = not this.is_complemented && Set.isEmpty set
-    member this.complement = new cset<_> (set, not this.is_complemented) 
+    member this.complement = cset (set, not this.is_complemented) 
 
     static member op_Implicit (set : _ Set) = cset set
 
@@ -61,22 +62,22 @@ type cset<'a when 'a : comparison> (set : 'a Set, ?is_complemented) =
     member a.union b =
         match a, b with
         | Inc X, Inc Y -> !> (X + Y)
+        | Exc Y, Inc X // commutative case
         | Inc X, Exc Y -> cset<_>.complemented (Y - X)
         | Exc X, Exc Y -> cset<_>.complemented (Set.intersect X Y)
-        | Exc X, Inc Y -> cset<_>.complemented (X - Y)
-
+        
     member a.intersect b =
         match a, b with
         | Inc X, Inc Y -> !> (Set.intersect X Y)
+        | Exc Y, Inc X // commutative case
         | Inc X, Exc Y -> !> (X - Y)
         | Exc X, Exc Y -> cset<_>.complemented (X + Y)
-        | Exc X, Inc Y -> !> (Y - X)
                         
     static member (-) (a : 'a cset, b) = a.difference b
     static member (+) (a : 'a cset, b) = a.union b
 
     member this.pretty = this.ToString ()
-    override this.ToString () = sprintf "cset [%s %s]" (if this.is_complemented then "!" else "") (flatten_stringables "; " this.set)
+    override this.ToString () = sprintf "cset [%s%s]" (if this.is_complemented then "! " else "") (flatten_stringables "; " this.set)
 
 
 
