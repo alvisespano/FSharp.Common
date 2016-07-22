@@ -63,7 +63,6 @@
     <Compile Include="Parsing.fs" />
     <Compile Include="Collections.fs" />
     <Compile Include="Threading.fs" />
-    <None Include="Script.fsx" />
     <Content Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
