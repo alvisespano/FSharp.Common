@@ -254,20 +254,25 @@ module Breakpoint =
 
 module CustomCompare =
 
+    /// Perform typed equality by using argument equals as binary equality operator.
     let equals_with equals (x : 'a) (yobj : obj) =
         match yobj with
             | :? 'a as y -> equals x y
             | _          -> false
 
+    /// Performs typed equality by mapping both operands via the given projection function f to some target type supporting equality and F# polymorphic (=) operator.
     let equals_by f = equals_with (fun x y -> f x = f y)
      
+    /// Performs hash by mapping operand x via the given projection function f to some target type supporting F# polymorphic hash function.
     let hash_by f x = hash (f x)
  
+    /// Perform typed comparison by using argument compare as binary comparison function (does not use polymorphic compare).
     let compare_with compare (x : 'a) (yobj: obj) =
         match yobj with
             | :? 'a as y -> compare x y
             | _          -> invalidArg "yobj" "cannot compare values of different types"
 
+    /// Performs typed comparison by mapping operand via the given projection function f to some target type supporting F# polymorphic compare function.
     let compare_by f = compare_with (fun x y -> compare (f x) (f y))
     
     type [< AbstractClass >] based_on_compare<'this> () =

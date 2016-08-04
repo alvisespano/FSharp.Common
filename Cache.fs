@@ -4,7 +4,7 @@
  * (C) 2007-2012 Alvise Spano' @ Universita' Ca' Foscari di Venezia
  *)
  
-  
+/// Caching facilities for improving performance of function calls, recursively or not, pure or not, in a number of versatile ways.
 module FSharp.Common.Cache
 
 open System
