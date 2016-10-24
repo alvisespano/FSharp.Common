@@ -90,6 +90,15 @@ let flatten_stringables sep = mappen_stringables id sep
 
 let separate2 f = List.fold (fun (aa, bb) x -> match f x with Choice1Of2 a -> (a :: aa, bb) | Choice2Of2 b -> (aa, b :: bb)) ([], [])
 
+/// Given the value x within the source interval (a1, b1), perforom a linear projection of x into the destination interval (a2, b2).
+/// Does not crop, thus a value lying outside the source interval is projected outside the destination interval;
+/// similarly it does not check order of interval boundaries, thus projection may perform a flip.
+let project (a1, b1) (a2, b2) x =
+    let d1 = b1 - a1
+    let d2 = b2 - a2
+    in
+        (x - a1) * d2 / d1 + a2
+
 let crop (a, b) n = if n < a then a elif n > b then b else n
 
 let char_of_byte n = Text.ASCIIEncoding.ASCII.GetChars([|n|]).[0]
