@@ -23,6 +23,7 @@ type cset<'a when 'a : comparison> (set : 'a Set, ?is_complemented) =
 
     member val is_complemented = defaultArg is_complemented false
     member val private set = set
+    member this.get = this.set, this.is_complemented
 
     override x.Equals yobj =
         match yobj with
@@ -49,6 +50,7 @@ type cset<'a when 'a : comparison> (set : 'a Set, ?is_complemented) =
     member this.is_universe = this.is_complemented && Set.isEmpty set
     member this.is_empty = not this.is_complemented && Set.isEmpty set
     member this.complement = cset (set, not this.is_complemented) 
+    member this.size = match this with Inc set -> Set.count set | Exc _ -> System.Int32.MaxValue
 
     static member op_Implicit (set : _ Set) = cset set
 
