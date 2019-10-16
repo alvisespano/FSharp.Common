@@ -10,7 +10,6 @@ open System
 open System.IO
 open Prelude
 open Printf
-open Microsoft.FSharp.Reflection
 
 
 // log line priority type
@@ -95,7 +94,7 @@ type config (?filename : string) =
     member val hint_threshold = Min with get, set
     member val warn_threshold = Min with get, set
 
-    member val has_console = (try (ignore Console.CursorLeft; true) with _ -> false)
+    member val has_console = (try (ignore Console.WindowHeight; true) with _ -> false)
 
     abstract all_thresholds : pri with set
     default this.all_thresholds        
