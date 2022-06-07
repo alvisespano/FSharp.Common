@@ -129,7 +129,7 @@ module Scanf =
 
     let parsers =
         dict [
-            'b', Boolean.Parse >> box
+            'b', (Boolean.Parse : string -> _) >> box
             'd', int >> box
             'i', int >> box
             's', box
