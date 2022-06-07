@@ -9,7 +9,7 @@ module FSharp.Common.Parsing
 open System
 open System.Text.RegularExpressions
 open Microsoft.FSharp.Text  // if removed, any project using types such as Position and LexBuffer will not compile because of name clashing with homonimous types defined elsewhere within F# libs
-
+open FSharp.Text
 
 
 (* error locating *)
@@ -60,6 +60,7 @@ type location (filename : string, line : int, col : int, ?end_line : int, ?end_c
 // yacc/lex utilities
 //
 
+#nowarn "52"
 module LexYacc =
     exception ParseErrorContextException of obj
     let parse_error_rich = Some (fun ctx -> raise (ParseErrorContextException ctx))
