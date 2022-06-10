@@ -1,27 +1,26 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>netcoreapp3.1</TargetFramework>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <Compile Include="AssemblyInfo.fs" />
-    <Compile Include="Prelude.fs" />
-    <Compile Include="Arg.fs" />
-    <Compile Include="X.fs" />
-    <Compile Include="Computation.fs" />
-    <Compile Include="Log.fs" />
-    <Compile Include="Env.fs" />
-    <Compile Include="Cache.fs" />
-    <Compile Include="Monad.fs" />
-    <Compile Include="Parsing.fs" />
-    <Compile Include="Collections.fs" />
-    <Compile Include="Threading.fs" />
-  </ItemGroup>
+	<ItemGroup>
+		<Compile Include="AssemblyInfo.fs" />
+		<Compile Include="Prelude.fs" />
+		<Compile Include="Arg.fs" />
+		<Compile Include="X.fs" />
+		<Compile Include="Computation.fs" />
+		<Compile Include="Log.fs" />
+		<Compile Include="Env.fs" />
+		<Compile Include="Cache.fs" />
+		<Compile Include="Monad.fs" />
+		<Compile Include="Parsing.fs" />
+		<Compile Include="Collections.fs" />
+		<Compile Include="Threading.fs" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="FsLexYacc.Runtime" Version="10.1.0" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="FsLexYacc.Runtime" Version="10.1.0" />
+	</ItemGroup>
 
 </Project>

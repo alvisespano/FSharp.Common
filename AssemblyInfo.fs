@@ -7,12 +7,12 @@ open System.Runtime.InteropServices
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[<assembly: AssemblyTitle("FSharp.Common")>]
+[<assembly: AssemblyTitle("F# Common Library")>]
 [<assembly: AssemblyDescription("Common utility library for F#")>]
 [<assembly: AssemblyConfiguration("")>]
 [<assembly: AssemblyCompany("Alvise Spano'")>]
-[<assembly: AssemblyProduct("FSharp.Common")>]
-[<assembly: AssemblyCopyright("© 2007-2016 Alvise Spano'")>]
+[<assembly: AssemblyProduct("F# Common Library")>]
+[<assembly: AssemblyCopyright("© 2007-2022 Alvise Spano'")>]
 [<assembly: AssemblyTrademark("")>]
 [<assembly: AssemblyCulture("")>]
 
@@ -22,7 +22,7 @@ open System.Runtime.InteropServices
 [<assembly: ComVisible(false)>]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
-[<assembly: Guid("3e721011-6cce-4187-a49a-dac093de8e0f")>]
+//[<assembly: Guid("3e721011-6cce-4187-a49a-dac093de8e0f")>]
 
 // Version information for an assembly consists of the following four values:
 // 

@@ -15,17 +15,19 @@ open FSharp.Common
 
 module Assembly =
 
+    [< Obsolete("Use Assembly.GetCustomAttribute<T>() instead")>]
     let get_assembly_attribute<'T when 'T :> System.Attribute> (asm : System.Reflection.Assembly) =
         let t = typeof<'T>
         try
-            let rex = new Text.RegularExpressions.Regex ("(System.Reflection.Assembly)(\w+)(Attribute)")
+            let rex = Text.RegularExpressions.Regex ("(System.Reflection.Assembly)(\\w+)(Attribute)")
             let name = rex.Match(t.FullName).Groups.[2].Value
             let atts = asm.GetCustomAttributes (t, false)
             let att = atts.[0] :?> System.Attribute
             in
-                att.GetType().GetProperty(name).GetValue(att, [||]).ToString ()
-        with _ -> ""
+                att.GetType().GetProperty(name).GetValue(att).ToString()
+        with _ -> sprintf "<Undefined Attribute: %s>" t.Name
 
+    [< Obsolete >]
     let retrieve_linker_timestamp () =
         let filePath = System.Reflection.Assembly.GetCallingAssembly().Location
         let c_PeHeaderOffset = 60
