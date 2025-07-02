@@ -20,7 +20,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="FsLexYacc.Runtime" Version="10.1.0" />
+		<PackageReference Include="FsLexYacc.Runtime" Version="11.3.0" />
 	</ItemGroup>
 
 </Project>
