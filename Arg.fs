@@ -51,8 +51,10 @@ type ArgParser() =
       sbuf.ToString()
 
 
-    static member ParsePartial(cursor,argv,argSpecs:seq<ArgInfo>,?other,?usageText) =
-        let other = defaultArg other (fun _ -> ())
+    // Each positional callback consumes exactly one required argument, in order.
+    static member ParsePartial(cursor,argv,argSpecs:seq<ArgInfo>,?positionals:seq<string -> unit>,?usageText) =
+        let positionals = defaultArg positionals Seq.empty |> Seq.toArray
+        let mutable positionalIndex = 0
         let usageText = defaultArg usageText ""
         let nargs = Array.length argv 
         incr cursor;
@@ -107,26 +109,33 @@ type ArgParser() =
                 elif arg.Length>0 && (arg.[0] = '-' || (arg.[0] = '/' && not (arg.Length > 1 && arg.[1..].Contains ("/")))) then
                     raise (Bad ("unrecognized argument: "+ arg + "\n" + getUsage argSpecs usageText))
                 else  
-                   other arg;
+                   if positionalIndex >= positionals.Length then
+                       raise (Bad ("unexpected positional argument: " + arg + "\n" + getUsage argSpecs usageText))
+                   positionals.[positionalIndex] arg;
+                   positionalIndex <- positionalIndex + 1
                    incr cursor
           findMatchingArg specs 
+        if positionalIndex < positionals.Length then
+            raise (Bad (sprintf "missing positional argument at position %d (expected %d, received %d)\n%s"
+                            (positionalIndex + 1) positionals.Length positionalIndex (getUsage argSpecs usageText)))
 
     static member Usage (specs,?usage) = 
         let usage = defaultArg usage ""
         System.Console.Error.WriteLine (getUsage (Seq.toList specs) usage)
 
-    static member Parse (specs,?other,?usageText) = 
+    static member Parse (specs,?positionals:seq<string -> unit>,?usageText) =
         let current = ref 0
         let argv = System.Environment.GetCommandLineArgs() 
-        try ArgParser.ParsePartial (current, argv, specs, ?other=other, ?usageText=usageText)
+        try ArgParser.ParsePartial (current, argv, specs, ?positionals=positionals, ?usageText=usageText)
         with 
-          | Bad h 
           | HelpText h -> 
+              System.Console.Out.WriteLine h;
+              System.Console.Out.Flush ();
+              System.Environment.Exit (0);
+          | Bad h ->
               System.Console.Error.WriteLine h; 
               System.Console.Error.Flush();  
               System.Environment.Exit(1); 
-          | e -> 
-              reraise()
 
 
 module Entry =

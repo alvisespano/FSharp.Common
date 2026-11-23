@@ -56,24 +56,24 @@ type cset<'a when 'a : comparison> (set : 'a Set, ?is_complemented) =
 
     member a.difference (b : 'a cset) =
         match a, b with
-        | Inc X, Inc Y -> !> (X - Y)
-        | Inc X, Exc Y -> !> (Set.intersect X Y) 
-        | Exc X, Exc Y -> !> (Y - X)
-        | Exc X, Inc Y -> cset<_>.complemented (X + Y)
+        | Inc x, Inc y -> !> (x - y)
+        | Inc x, Exc y -> !> (Set.intersect x y) 
+        | Exc x, Exc y -> !> (y - x)
+        | Exc x, Inc y -> cset<_>.complemented (x + y)
 
     member a.union b =
         match a, b with
-        | Inc X, Inc Y -> !> (X + Y)
-        | Exc Y, Inc X // commutative case
-        | Inc X, Exc Y -> cset<_>.complemented (Y - X)
-        | Exc X, Exc Y -> cset<_>.complemented (Set.intersect X Y)
+        | Inc x, Inc y -> !> (x + y)
+        | Exc y, Inc x // commutative case
+        | Inc x, Exc y -> cset<_>.complemented (y - x)
+        | Exc x, Exc y -> cset<_>.complemented (Set.intersect x y)
         
     member a.intersect b =
         match a, b with
-        | Inc X, Inc Y -> !> (Set.intersect X Y)
-        | Exc Y, Inc X // commutative case
-        | Inc X, Exc Y -> !> (X - Y)
-        | Exc X, Exc Y -> cset<_>.complemented (X + Y)
+        | Inc x, Inc y -> !> (Set.intersect x y)
+        | Exc y, Inc x // commutative case
+        | Inc x, Exc y -> !> (x - y)
+        | Exc x, Exc y -> cset<_>.complemented (x + y)
                         
     static member (-) (a : 'a cset, b) = a.difference b
     static member (+) (a : 'a cset, b) = a.union b

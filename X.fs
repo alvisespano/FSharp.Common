@@ -13,33 +13,33 @@ open System.Text.RegularExpressions
 open Microsoft.FSharp
 open FSharp.Common
 
-module Assembly =
+//module Assembly =
 
-    [< Obsolete("Use Assembly.GetCustomAttribute<T>() instead")>]
-    let get_assembly_attribute<'T when 'T :> System.Attribute> (asm : System.Reflection.Assembly) =
-        let t = typeof<'T>
-        try
-            let rex = Text.RegularExpressions.Regex ("(System.Reflection.Assembly)(\\w+)(Attribute)")
-            let name = rex.Match(t.FullName).Groups.[2].Value
-            let atts = asm.GetCustomAttributes (t, false)
-            let att = atts.[0] :?> System.Attribute
-            in
-                att.GetType().GetProperty(name).GetValue(att).ToString()
-        with _ -> sprintf "<Undefined Attribute: %s>" t.Name
+    //[< Obsolete("Use Assembly.GetCustomAttribute<T>() instead")>]
+    //let get_assembly_attribute<'T when 'T :> System.Attribute> (asm : System.Reflection.Assembly) =
+    //    let t = typeof<'T>
+    //    try
+    //        let rex = Text.RegularExpressions.Regex ("(System.Reflection.Assembly)(\\w+)(Attribute)")
+    //        let name = rex.Match(t.FullName).Groups.[2].Value
+    //        let atts = asm.GetCustomAttributes (t, false)
+    //        let att = atts.[0] :?> System.Attribute
+    //        in
+    //            att.GetType().GetProperty(name).GetValue(att).ToString()
+    //    with _ -> sprintf "<Undefined Attribute: %s>" t.Name
 
-    [< Obsolete >]
-    let retrieve_linker_timestamp () =
-        let filePath = System.Reflection.Assembly.GetCallingAssembly().Location
-        let c_PeHeaderOffset = 60
-        let c_LinkerTimestampOffset = 8
-        let b = Array.create 2048 (byte 0)
-        use s = new IO.FileStream (filePath, System.IO.FileMode.Open, System.IO.FileAccess.Read)
-        ignore <| s.Read (b, 0, 2048)
-        let i = System.BitConverter.ToInt32(b, c_PeHeaderOffset)
-        let secondsSince1970 = System.BitConverter.ToInt32 (b, i + c_LinkerTimestampOffset)
-        let dt = new DateTime (1970, 1, 1, 0, 0, 0)
-        let dt = dt.AddSeconds (float secondsSince1970)
-        dt.AddHours (float (let x = TimeZone.CurrentTimeZone.GetUtcOffset dt in x.Hours))
+    //[< Obsolete >]
+    //let retrieve_linker_timestamp () =
+    //    let filePath = System.Reflection.Assembly.GetCallingAssembly().Location
+    //    let c_PeHeaderOffset = 60
+    //    let c_LinkerTimestampOffset = 8
+    //    let b = Array.create 2048 (byte 0)
+    //    use s = new IO.FileStream (filePath, System.IO.FileMode.Open, System.IO.FileAccess.Read)
+    //    ignore <| s.Read (b, 0, 2048)
+    //    let i = System.BitConverter.ToInt32(b, c_PeHeaderOffset)
+    //    let secondsSince1970 = System.BitConverter.ToInt32 (b, i + c_LinkerTimestampOffset)
+    //    let dt = new DateTime (1970, 1, 1, 0, 0, 0)
+    //    let dt = dt.AddSeconds (float secondsSince1970)
+    //    dt.AddHours (float (let x = TimeZone.CurrentTimeZone.GetUtcOffset dt in x.Hours))
         
 
 module Threading =

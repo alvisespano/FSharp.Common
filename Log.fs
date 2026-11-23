@@ -227,8 +227,11 @@ type [< AbstractClass >] logger (cfg : config) =
 
     member this.log_leveled header fgcol threshold pri fmt = this.printf_leveled header fgcol threshold pri fmt
     member this.log_unleveled header fgcol fmt = this.printf_unleveled header fgcol fmt
-    member this.log_line s = lock this <| fun () -> printfn "%s" s
-    member this.line_feed = lock this <| fun () -> Console.WriteLine ""
+    member this.log_line s = lock this <| fun () -> this.write_line s
+    member this.line_feed = this.log_line ""
+
+    abstract write_line : string -> unit
+    default __.write_line s = Console.WriteLine s
 
     member this.msg pri fmt = this.log_leveled cfg.msg_header cfg.msg_color cfg.msg_threshold pri fmt
     member this.debug pri fmt = this.log_leveled cfg.debug_header cfg.debug_color cfg.debug_threshold pri fmt
@@ -269,114 +272,189 @@ type [< AbstractClass >] logger (cfg : config) =
                 cfg.tab <- tab_history.Pop ()
 
 
-// console logger
+// Common formatting. Destinations supply only colored text output, flushing and
+// an optional line width. The optional file in config receives the same text.
 //
 
-type console_logger (cfg) =
+[< AbstractClass >]
+type formatted_logger (cfg : config) =
     inherit logger (cfg)
 
     let mutable last_header = ""
     let now0 = DateTime.Now
     let calling_thread_id = Threading.Thread.CurrentThread.ManagedThreadId
     let mutable another_thread_has_logged = false
-    let out (s : string) =
-        if cfg.has_console then Console.Write s
-        cfg.StreamWriter.Write s
-    let outcol fg bg (s : string) =
-        Console.ForegroundColor <- fg
-        Console.BackgroundColor <- bg
-        out s
-    let outsq fg bg len s =
-        outcol cfg.square_bracket_color ConsoleColor.Black "["
-        outcol fg bg s
-        outcol cfg.square_bracket_color ConsoleColor.Black "]"
-        let dlen = len - (s.Length + 2)
-        if dlen > 0 then Console.ResetColor (); out (spaces dlen)
-    let outsqfg fg len s = outsq fg ConsoleColor.Black len s
-    let pad n =
-        Console.ResetColor ()
-        if cfg.padding_enabled then out (spaces n)
-     
-    override __.actually_print (header, fgcol, markso, prio, s) =
+
+    abstract write_text : ConsoleColor * ConsoleColor * string -> unit
+
+    abstract flush : unit -> unit
+    default __.flush () = ()
+
+    abstract line_width : int option
+    default __.line_width = None
+
+    member private this.out fg bg s =
+        this.write_text (fg, bg, s)
+        cfg.StreamWriter.Write (s : string)
+
+    member private this.end_line () =
+        this.out cfg.msg_color ConsoleColor.Black Environment.NewLine
+        this.flush ()
+        cfg.StreamWriter.Flush ()
+
+    override this.write_line s =
+        this.out cfg.msg_color ConsoleColor.Black s
+        this.end_line ()
+
+    override this.actually_print (header, fgcol, markso, prio, s) =
         let darkcol = Color.darken fgcol
-        // datetime              
+        let mutable prefix_length = 0
+        let emit fg bg (text : string) =
+            this.out fg bg text
+            prefix_length <- prefix_length + text.Length
+        let pad n =
+            if cfg.padding_enabled then emit cfg.msg_color ConsoleColor.Black (spaces (max 0 n))
+        let field fg bg width (value : string) =
+            emit cfg.square_bracket_color ConsoleColor.Black "["
+            emit fg bg value
+            emit cfg.square_bracket_color ConsoleColor.Black "]"
+            pad (width - value.Length - 2)
+        let fieldfg fg width value = field fg ConsoleColor.Black width value
         if cfg.show_datetime then
             let now = DateTime.Now
-            outsqfg cfg.datetime_color cfg.datetime_max_len
-                (if cfg.show_milliseconds then sprintf "%O.%d" now now.Millisecond else sprintf "%O" now)
-        // elapsed              
+            fieldfg cfg.datetime_color cfg.datetime_max_len
+                (if cfg.show_milliseconds then sprintf "%O.%03d" now now.Millisecond else sprintf "%O" now)
         if cfg.show_elapsed then
             let span = DateTime.Now - now0
-            let len, f = if cfg.show_milliseconds then (10, fun h m s -> sprintf "%02d:%02d:%02d.%03d" h m s span.Milliseconds)
-                            else 6, sprintf "%02d:%02d:%02d"
-            outsqfg cfg.datetime_color len (f span.Hours span.Minutes span.Seconds)
-        // thread
+            fieldfg cfg.datetime_color (if cfg.show_milliseconds then 10 else 6)
+                (if cfg.show_milliseconds then sprintf "%02d:%02d:%02d.%03d" span.Hours span.Minutes span.Seconds span.Milliseconds
+                 else sprintf "%02d:%02d:%02d" span.Hours span.Minutes span.Seconds)
         if cfg.show_thread then
             let th = Threading.Thread.CurrentThread
             let id = th.ManagedThreadId
             if id <> calling_thread_id then another_thread_has_logged <- true
             if another_thread_has_logged then
-                let name = th.Name
-                outsqfg cfg.thread_color cfg.thread_max_len (if th.IsThreadPoolThread then sprintf ":%d" id else sprintf "%s#%d" (if String.IsNullOrEmpty name then "" else name.Trim ()) id)
-        // header
+                fieldfg cfg.thread_color cfg.thread_max_len
+                    (if th.IsThreadPoolThread then sprintf ":%d" id
+                     else sprintf "%s#%d" (if String.IsNullOrEmpty th.Name then "" else th.Name.Trim ()) id)
         if cfg.show_header then
-            if not (String.IsNullOrWhiteSpace header) && ((cfg.show_header_only_when_changes && last_header <> header) || not cfg.show_header_only_when_changes) then
+            if not (String.IsNullOrWhiteSpace header) &&
+               (not cfg.show_header_only_when_changes || last_header <> header) then
                 last_header <- header
-                outsq fgcol darkcol cfg.header_max_len header
-            else
-                pad cfg.header_max_len
-        // priority
+                field fgcol darkcol cfg.header_max_len header
+            else pad cfg.header_max_len
         if cfg.show_priority then
             match prio with
-                | Some (lv : pri) -> outsqfg cfg.priority_color cfg.priority_max_len lv.pretty
-                | None            -> pad cfg.priority_max_len
-        // urgency
+            | Some pri -> fieldfg cfg.priority_color cfg.priority_max_len pri.pretty
+            | None -> pad cfg.priority_max_len
         if cfg.show_urgency then
-            Option.iter (fun marks -> outcol cfg.urgency_color ConsoleColor.Black (new String ('!', marks) + spaces (5 - marks))) markso
-        else out " "
-        // message body
-        let at = Console.CursorLeft
-        let (bodyfgcol, bodybgcol) =
+            match markso with
+            | Some marks ->
+                emit cfg.urgency_color ConsoleColor.Black (String ('!', max 0 marks))
+                pad (5 - marks)
+            | None -> ()
+        elif prefix_length > 0 then emit cfg.msg_color ConsoleColor.Black " "
+        let body =
+            match cfg.tab_to_spaces with
+            | Some n -> s.Replace ("\t", spaces n)
+            | None -> s
+        let lines = (body.Replace ("\r\n", "\n")).Split [|'\n'|]
+        let bodyfg, bodybg =
             if cfg.text_shade_by_urgency then Color.shade fgcol darkcol (either 1 markso)
             else fgcol, ConsoleColor.Black
-        let outbody (tabn, s : string) =
-            Console.CursorLeft <- at + tabn
-            Console.ForegroundColor <- bodyfgcol
-            Console.BackgroundColor <- bodybgcol
-            Console.Write s
-            Console.ResetColor ()
-            Console.WriteLine ()
-        let p (s : string) =
-            let s = match cfg.tab_to_spaces with Some n -> s.Replace("\t", spaces n) | None -> s
-            let tablen1 = cfg.tab
-            let sa =
-                let len1 = Console.BufferWidth - (at + tablen1) - 1   // length of the first (unpadded) line; the -1 is for rounding down console width
-                in
-                    if s.Length > len1 then
-                        let s0 = s.Substring (0, len1)
-                        let sr = s.Substring len1
-                        in
-                            [
-                                yield tablen1, s0
-                                for s in split_string_on_size (len1 - cfg.multiline_left_pad) sr do
-                                    yield tablen1 + cfg.multiline_left_pad, s
-                            ]
-                    else [ tablen1, s ]
-            for _, s as e in sa do
-                if not <| String.IsNullOrWhiteSpace s then outbody e
-        Array.iter p (s.Split [|'\n'|])
+        let width = this.line_width
+        let body_indent = prefix_length + max 0 cfg.tab
+        let wrap_indent = body_indent + max 0 cfg.multiline_left_pad
+        // Explicit newlines align with the body; only wrapped continuations get
+        // the extra padding. Plain writers never split a long source line.
+        for i = 0 to lines.Length - 1 do
+            let line = lines.[i]
+            let mutable offset = 0
+            let mutable indent = if i = 0 then max 0 cfg.tab else body_indent
+            let mutable column = if i = 0 then prefix_length + indent else indent
+            let mutable more = true
+            while more do
+                let count =
+                    match width with
+                    | Some width -> min (line.Length - offset) (max 1 (width - column - 1))
+                    | None -> line.Length - offset
+                this.out cfg.msg_color ConsoleColor.Black (spaces indent)
+                this.out bodyfg bodybg (line.Substring (offset, count))
+                this.end_line ()
+                offset <- offset + count
+                more <- offset < line.Length
+                indent <- wrap_indent
+                column <- indent
+
+    abstract close : unit
+    default __.close = cfg.close
+
+    abstract Dispose : bool -> unit
+    default this.Dispose disposing =
+        if disposing then this.close
 
     interface IDisposable with
         member this.Dispose () =
             this.Dispose true
             GC.SuppressFinalize this
 
-    abstract Dispose : bool -> unit
-    default __.Dispose disposing =
-        if disposing then (cfg :> IDisposable).Dispose ()
 
-    abstract close : unit
-    default __.close = cfg.close
+// Caller-owned writers stay open. File loggers own and close their writer.
+//
+
+type text_logger (writer : TextWriter, cfg : config, ?leave_open : bool) =
+    inherit formatted_logger (cfg)
+
+    let leave_open = defaultArg leave_open true
+    let mutable closed = false
+
+    override __.write_text (_, _, s) =
+        if closed then raise (ObjectDisposedException "text_logger")
+        writer.Write s
+
+    override __.flush () = writer.Flush ()
+
+    override this.close =
+        lock this <| fun () ->
+            if not closed then
+                try
+                    if leave_open then writer.Flush () else writer.Dispose ()
+                finally
+                    closed <- true
+                    cfg.close
+
+type std_logger (cfg : config, ?stderr : bool) =
+    inherit text_logger ((if defaultArg stderr false then Console.Error else Console.Out), cfg, leave_open = true)
+
+    new () = new std_logger (new config ())
+
+type file_logger (filename : string, cfg : config, ?append : bool) =
+    inherit text_logger (new StreamWriter (filename, defaultArg append false, new Text.UTF8Encoding (false)), cfg, leave_open = false)
+
+    new (filename : string) = new file_logger (filename, new config ())
+
+
+// console logger
+//
+
+type console_logger (cfg) =
+    inherit formatted_logger (cfg)
+
+    let interactive () = cfg.has_console && not Console.IsOutputRedirected
+
+    override __.write_text (fg, bg, s) =
+        if interactive () then
+            try
+                Console.ForegroundColor <- fg
+                Console.BackgroundColor <- bg
+                Console.Write s
+            finally Console.ResetColor ()
+        else Console.Write s
+
+    override __.flush () = Console.Out.Flush ()
+
+    override __.line_width =
+        if interactive () then Some Console.BufferWidth else None
 
     new () = new console_logger (new config ())
 
@@ -387,4 +465,5 @@ type console_logger (cfg) =
 
 type null_logger (cfg) =
     inherit logger (cfg)
+    override __.write_line _ = ()
     override __.actually_print (_, _, _, _, _) = ()

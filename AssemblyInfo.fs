@@ -12,7 +12,7 @@ open System.Runtime.InteropServices
 [<assembly: AssemblyConfiguration("")>]
 [<assembly: AssemblyCompany("Alvise Spano'")>]
 [<assembly: AssemblyProduct("F# Common Library")>]
-[<assembly: AssemblyCopyright("© 2007-2022 Alvise Spano'")>]
+[<assembly: AssemblyCopyright("© 2007-2026 Alvise Spano'")>]
 [<assembly: AssemblyTrademark("")>]
 [<assembly: AssemblyCulture("")>]
 
@@ -34,7 +34,7 @@ open System.Runtime.InteropServices
 // You can specify all the values or you can default the Build and Revision Numbers 
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[<assembly: AssemblyVersion("1.0.12.*")>]
+[<assembly: AssemblyVersion("1.0.13.*")>]
 //[<assembly: AssemblyFileVersion("1.0.10.*")>]
 
 do
